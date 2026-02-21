@@ -8,23 +8,67 @@ import google.generativeai as genai
 import json
 import os
 
+# --- Firebase 官方库 ---
+import firebase_admin
+from firebase_admin import credentials, firestore
+
 # ==========================================
 # 核心配置区域 (支持本地运行与云端环境变量)
 # ==========================================
 # 优先从环境变量获取，如果没有则使用填写的字符串
 # 这样做可以安全地将代码上传到 GitHub，而在 GitHub Secrets 中配置真实的 Key
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Telegram 推送配置
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "YOUR_CHAT_ID")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
+
+# Firebase 密钥 (从 GitHub Secrets 获取)
+FIREBASE_CRED_JSON = os.environ.get("FIREBASE_CREDENTIALS", "")
+
+# ==========================================
+# Firebase 数据库同步模块
+# ==========================================
+def upload_to_firebase(macro_data, news_data):
+    if not FIREBASE_CRED_JSON:
+        print("⚠️ 未配置 FIREBASE_CREDENTIALS，跳过数据库同步。")
+        return
+
+    try:
+        # 解析 JSON 密钥
+        cred_dict = json.loads(FIREBASE_CRED_JSON)
+        
+        # 初始化 Firebase (防止重复初始化报错)
+        if not firebase_admin._apps:
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred)
+            
+        db = firestore.client()
+        
+        # 同步今日经济数据
+        if macro_data:
+            db.collection('market_data').document('macro').set({
+                'events': macro_data,
+                'last_updated': datetime.now(ZoneInfo("Asia/Singapore")).strftime('%Y-%m-%d %H:%M:%S')
+            })
+            
+        # 同步突发重要新闻
+        if news_data:
+            db.collection('market_data').document('news').set({
+                'articles': news_data,
+                'last_updated': datetime.now(ZoneInfo("Asia/Singapore")).strftime('%Y-%m-%d %H:%M:%S')
+            })
+            
+        print("☁️ ✅ 成功同步最新数据至 Firebase 数据库！")
+    except Exception as e:
+        print(f"☁️ ❌ Firebase 同步失败: {e}")
 
 # ==========================================
 # 基础工具: Telegram 推送模块
 # ==========================================
 def send_telegram_alert(message):
-    if TELEGRAM_BOT_TOKEN == "YOUR_TELEGRAM_BOT_TOKEN" or not TELEGRAM_BOT_TOKEN:
+    if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN == "YOUR_TELEGRAM_BOT_TOKEN":
         print("⚠️ 未配置 Telegram Token，仅在控制台打印，跳过推送。")
         return
         
@@ -78,7 +122,7 @@ def fetch_macro_events():
                 title = event.get("title", "未知事件")
                 previous = event.get("previous")
                 forecast = event.get("forecast")
-                actual = event.get("actual") # 新增：尝试获取实际公布值
+                actual = event.get("actual") 
                 date_str = event.get("date")
                 
                 if not date_str:
@@ -128,11 +172,9 @@ def fetch_latest_news():
         feed = feedparser.parse(response.content)
         recent_entries = []
         
-        # 优化：移除严格的24小时过滤，直接抓取 RSS 排序中最顶部的 30 条最新新闻
+        # 无脑抓取最顶部的 30 条最新新闻
         for entry in feed.entries:
             recent_entries.append(entry)
-            
-            # 抓满 30 条就停止
             if len(recent_entries) >= 30:
                 break
                 
@@ -157,15 +199,12 @@ def analyze_news_with_gemini(news_entries):
         link = entry.get('link', '无链接')
         pub_time = entry.get('published', '未知时间')
         
-        # 尝试获取全文内容 (部分 RSS 源会在 content 中提供全文)
         content_list = entry.get('content', [])
         full_content = ""
         if content_list and len(content_list) > 0:
             full_content = content_list[0].get('value', '')
-            # 简单清理 HTML 标签
             full_content = full_content.split('<img')[0].replace('<p>', '').replace('</p>', '\n').strip()
         
-        # 如果没有 content，退而求其次用 summary/description
         if not full_content:
             full_content = entry.get('summary', entry.get('description', ''))
             full_content = full_content.split('<img')[0].split('<br')[0].split('<p')[0].strip()
@@ -173,7 +212,7 @@ def analyze_news_with_gemini(news_entries):
         if not full_content:
             full_content = "无正文，请结合标题和链接进行推测。"
         else:
-            full_content = full_content[:1500] # 放宽字数限制到1500字，给AI提供极长上下文
+            full_content = full_content[:1500] 
             
         news_list_text += f"[{i}] 标题: {title}\n时间: {pub_time}\n链接: {link}\n内容/摘要: {full_content}\n\n"
         
@@ -204,7 +243,6 @@ def analyze_news_with_gemini(news_entries):
         
         important_news = []
         for item in ai_analysis:
-            # 推送阈值下调：7分及以上（包含重要个股异动）就触发抓取
             if item['score'] >= 7:
                 orig = news_entries[item['id']]
                 important_news.append({
@@ -279,6 +317,7 @@ if __name__ == "__main__":
     # 3. AI 分析并执行 Telegram 推送
     print("-" * 40)
     
+    macro_analysis = []
     # -- 处理今日宏观数据 --
     if today_macro:
         print(f"📌 发现 {len(today_macro)} 个今日核心经济数据，开始 AI 解读...")
@@ -300,6 +339,7 @@ if __name__ == "__main__":
     else:
         print("📭 今天没有高重要性的经济数据。")
 
+    critical_news = []
     # -- 处理突发新闻 --
     if news_data:
         critical_news = analyze_news_with_gemini(news_data)
@@ -316,5 +356,7 @@ if __name__ == "__main__":
                 send_telegram_alert(tg_msg)
         else:
             print("✅ 市场暂无评分大于 7 的重要情报。")
-            
+
+    # 🚀 核心新增：将 AI 分析完的最终数据存入 Firebase
+    upload_to_firebase(macro_analysis, critical_news)
     print("\n=== MarketMind 运行完毕 ===")
