@@ -61,10 +61,18 @@ def fetch_macro_events():
     start_str = start_of_week.strftime('%Y-%m-%dT%H:%M:%S.000Z')
     end_str = end_of_week.strftime('%Y-%m-%dT%H:%M:%S.000Z')
     url = f"https://economic-calendar.tradingview.com/events?from={start_str}&to={end_str}&countries=US"
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Origin": "https://www.tradingview.com",
+        "Referer": "https://www.tradingview.com/"
+    }
     try:
         response = requests.get(url, headers=headers, timeout=10)
-        events = response.json().get('result', response.json())
+        response.raise_for_status() # 恢复状态码检查
+        
+        data = response.json()
+        events = data.get('result', data) if isinstance(data, dict) else data
+        
         important_events = []
         for event in events:
             if event.get("importance", 0) >= 1 and event.get("date"):
