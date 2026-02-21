@@ -564,13 +564,22 @@
 					news.score >= 9
 						? "bg-red-600 text-white"
 						: "bg-gray-700 text-gray-300";
-				return `<div class="bg-gray-800 rounded-xl p-4 border border-gray-700 relative overflow-hidden shadow-sm">
+
+				// 如果存在链接，则赋予 <a> 标签跳转属性和悬停变色交互
+				const linkAttr = news.link
+					? `href="${news.link}" target="_blank" rel="noopener noreferrer"`
+					: "";
+				const hoverClass = news.link
+					? "hover:bg-gray-750 cursor-pointer block transition-colors active:bg-gray-700"
+					: "block";
+
+				return `<a ${linkAttr} class="bg-gray-800 rounded-xl p-4 border border-gray-700 relative overflow-hidden shadow-sm ${hoverClass}">
                 <div class="absolute top-0 right-0 px-2 py-1 text-[10px] font-bold rounded-bl-lg ${scoreColor}">${news.score} / 10</div>
-                <h4 class="text-white font-medium text-sm pr-10 leading-snug mb-3">${news.title}</h4>
+                <h4 class="text-white font-medium text-sm pr-10 leading-snug mb-3 group-hover:text-blue-400">${news.title}</h4>
                 <div class="flex gap-2 items-start flex-col sm:flex-row sm:items-center">
                     <span class="px-2 py-1 rounded border text-[10px] font-bold ${impactColor}">${news.impact}</span>
                     <p class="text-gray-400 text-xs flex-1 line-clamp-2"><span class="text-gray-300 font-bold">简评:</span> ${news.reason}</p>
-                </div></div>`;
+                </div></a>`;
 			}
 
 			function renderDashboardNews() {
