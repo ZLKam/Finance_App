@@ -57,10 +57,6 @@
 				border-top: 1px solid rgba(55, 65, 81, 0.5);
 			}
 		</style>
-		<!-- Chosen Palette: Dark Mode Financial (Deep Gray #111827, Surface Gray #1F2937, Bull Green #10B981, Bear Red #EF4444, Accent Blue #3B82F6) -->
-		<!-- Application Structure Plan: Bottom-nav PWA. Dashboard highlights imminent or latest past macro event + real-time Bull/Bear power. Calendar integrates macro data and custom user subscriptions (earnings/events). Intelligence shows AI news feed. Modal for custom event entry ensures seamless user interaction. -->
-		<!-- Visualization & Content Choices: Dashboard Hero intelligently selects future or recent past event; Chart.js bar strictly maps real-time aggregated AI news scores; Vanilla JS dynamically merges and sorts Firebase macro + custom collections. -->
-		<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 	</head>
 	<body
 		class="bg-gray-900 text-gray-100 font-sans antialiased flex flex-col h-screen overflow-hidden"
@@ -221,13 +217,13 @@
 			<section id="view-calendar" class="p-5 space-y-4 hidden relative">
 				<div class="flex justify-between items-center mb-4">
 					<p class="text-xs text-gray-400">
-						宏观数据与个人订阅日程合并展示
+						宏观数据与您的自选财报日历
 					</p>
 					<button
 						onclick="openModal()"
 						class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-1.5 px-3 rounded shadow"
 					>
-						➕ 订阅事件
+						➕ 订阅财报
 					</button>
 				</div>
 				<div id="calendar-list" class="space-y-3"></div>
@@ -278,15 +274,6 @@
 				<p class="text-gray-300 text-sm mb-6 text-center">
 					配置已生效，但你的项目需要在网页端创建一次数据库实例。
 				</p>
-				<div
-					class="bg-gray-800 p-5 rounded-xl text-xs text-gray-300 w-full max-w-sm border border-gray-700"
-				>
-					<ol class="list-decimal ml-4 space-y-2">
-						<li>前往 Firebase 控制台 -> Firestore Database</li>
-						<li>点击 Create database，位置选 Singapore</li>
-						<li>规则选 Start in test mode，然后刷新本页</li>
-					</ol>
-				</div>
 			</section>
 		</main>
 
@@ -319,66 +306,55 @@
 			</div>
 		</nav>
 
+		<!-- 极简输入弹窗 -->
 		<div
 			id="event-modal"
 			class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4"
 		>
 			<div
-				class="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-sm p-5 shadow-2xl transform transition-all"
+				class="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-sm p-6 shadow-2xl transform transition-all"
 			>
-				<h3 class="text-lg font-bold text-white mb-4">
-					添加自定义事件 / 财报
-				</h3>
+				<h3 class="text-lg font-bold text-white mb-4">订阅财报提醒</h3>
 				<div class="space-y-4">
 					<div>
-						<label class="block text-xs text-gray-400 mb-1"
-							>股票代码 / 事件名称</label
-						><input
+						<label class="block text-xs text-gray-400 mb-2"
+							>输入美股代码 (Ticker)</label
+						>
+						<input
 							type="text"
-							id="ev-title"
-							placeholder="如: NVDA 财报"
-							class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white text-sm focus:border-blue-500 outline-none"
+							id="ev-ticker"
+							placeholder="如: NVDA, TSLA, AAPL"
+							autocomplete="off"
+							class="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white text-base font-bold tracking-wider focus:border-blue-500 outline-none uppercase placeholder-gray-600"
 						/>
 					</div>
-					<div>
-						<label class="block text-xs text-gray-400 mb-1"
-							>日期时间</label
-						><input
-							type="datetime-local"
-							id="ev-date"
-							class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white text-sm focus:border-blue-500 outline-none"
-						/>
-					</div>
-					<div>
-						<label class="block text-xs text-gray-400 mb-1"
-							>备注说明</label
-						><input
-							type="text"
-							id="ev-note"
-							placeholder="如: 盘后发布，IV 极高"
-							class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white text-sm focus:border-blue-500 outline-none"
-						/>
+					<div
+						class="bg-blue-900/20 border border-blue-800/50 rounded p-3 text-xs text-blue-400"
+					>
+						💡 提交后，代码将推入后端队列。Python
+						引擎将在其下一次自动运行时，精准抓取该公司的最新财报日期并推送到日历中。
 					</div>
 				</div>
 				<div class="mt-6 flex gap-3 justify-end">
 					<button
 						onclick="closeModal()"
-						class="px-4 py-2 rounded text-sm text-gray-400 hover:text-white"
+						class="px-4 py-2 rounded text-sm text-gray-400 hover:text-white transition-colors"
 					>
 						取消
 					</button>
 					<button
 						onclick="saveCustomEvent()"
-						class="px-4 py-2 rounded text-sm bg-blue-600 hover:bg-blue-500 text-white font-bold"
+						id="btn-save-event"
+						class="px-5 py-2 rounded text-sm bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all shadow-lg"
 					>
-						保存订阅
+						提交监控
 					</button>
 				</div>
 			</div>
 		</div>
 
 		<script>
-			// 请在此处填入你的配置信息
+			// ⚠️ 请在此处填入你的配置信息
 			const firebaseConfig = {
 				apiKey: "AIzaSyAHnFy-RQTrJRIu4BFF4LnGA_PP6GWSDsk",
 				authDomain: "finance-app-447cc.firebaseapp.com",
@@ -402,6 +378,7 @@
 				macroData: [],
 				newsData: [],
 				customData: [],
+				watchlist: [],
 				currentTab: "dashboard",
 				currentNewsFilter: "all",
 				nextEventTimer: null,
@@ -464,6 +441,20 @@
 							}
 						},
 						(e) => handleErr(e, unsubC),
+					);
+
+				// 新增：监听用户的 watchlist
+				let unsubW = db
+					.collection("market_data")
+					.doc("watchlist")
+					.onSnapshot(
+						(doc) => {
+							if (doc.exists) {
+								state.watchlist = doc.data().tickers || [];
+								updateUI();
+							}
+						},
+						(e) => handleErr(e, unsubW),
 					);
 			}
 
@@ -564,8 +555,6 @@
 					news.score >= 9
 						? "bg-red-600 text-white"
 						: "bg-gray-700 text-gray-300";
-
-				// 如果存在链接，则赋予 <a> 标签跳转属性和悬停变色交互
 				const linkAttr = news.link
 					? `href="${news.link}" target="_blank" rel="noopener noreferrer"`
 					: "";
@@ -600,32 +589,54 @@
 
 			function renderCalendar() {
 				const container = document.getElementById("calendar-list");
-				const combined = [...state.macroData, ...state.customData].sort(
-					(a, b) => a.timestamp - b.timestamp,
-				);
-				if (!combined.length) {
-					container.innerHTML =
-						'<div class="text-center text-gray-500 text-sm py-10">当前无任何日程</div>';
-					return;
-				}
-
 				const now = new Date().getTime() / 1000;
-				container.innerHTML = combined
-					.map((ev) => {
-						const isCustom = ev.type === "custom";
-						const isPast = ev.timestamp < now;
-						const dateParts = ev.date.split(" ");
-						const day = dateParts[0] ? dateParts[0].slice(5) : "--";
-						const time = dateParts[1] ? dateParts[1] : "--";
-						const opacity = isPast ? "opacity-50 grayscale" : "";
-						const badge = isCustom
-							? `<span class="bg-blue-900/50 text-blue-400 border border-blue-800 px-1 rounded text-[8px] uppercase ml-2">自选订阅</span>`
-							: "";
-						const details = isCustom
-							? `<span class="text-blue-300">备注: ${ev.forecast || "--"}</span>`
-							: `<span>前: ${ev.previous || "--"}</span><span class="text-blue-400">预: ${ev.forecast || "--"}</span>`;
+				const oneMonthLater = now + 30 * 24 * 60 * 60;
 
-						return `<div class="flex gap-3 bg-gray-800/50 p-3 rounded-xl border border-gray-700 items-center ${opacity}">
+				// 1. 已由后端确认抓取到的事件
+				const combined = [...state.macroData, ...state.customData]
+					.filter(
+						(ev) =>
+							ev.timestamp >= now &&
+							ev.timestamp <= oneMonthLater,
+					)
+					.sort((a, b) => a.timestamp - b.timestamp);
+
+				// 2. 识别哪些自选股还在排队中 (存在于 watchlist 但还未出现在 customData 中)
+				const syncedTickers = state.customData.map((ev) => ev.ticker);
+				const pendingTickers = state.watchlist.filter(
+					(t) => !syncedTickers.includes(t),
+				);
+
+				let html = "";
+
+				// 渲染排队中的股票
+				pendingTickers.forEach((t) => {
+					html += `
+                <div class="flex gap-3 bg-gray-800/30 p-3 rounded-xl border border-gray-700 items-center border-dashed">
+                    <div class="flex flex-col items-center justify-center min-w-[50px] bg-gray-900/50 rounded-lg h-[50px] border border-gray-700">
+                        <span class="text-xl animate-spin">⏳</span>
+                    </div>
+                    <div class="flex-1 min-w-0 opacity-70">
+                        <h4 class="text-sm font-bold text-gray-300">${t} <span class="bg-blue-900/30 text-blue-400 border border-blue-800/50 px-1 rounded text-[8px] uppercase ml-1">排队同步中</span></h4>
+                        <div class="text-[10px] text-gray-500 mt-1">等待 Python 后端下次运行自动抓取财报日期...</div>
+                    </div>
+                </div>`;
+				});
+
+				// 渲染正式日历
+				combined.forEach((ev) => {
+					const isCustom = ev.type === "custom";
+					const dateParts = ev.date.split(" ");
+					const day = dateParts[0] ? dateParts[0].slice(5) : "--";
+					const time = dateParts[1] ? dateParts[1] : "--";
+					const badge = isCustom
+						? `<span class="bg-green-900/40 text-green-400 border border-green-800 px-1 rounded text-[8px] uppercase ml-2">已就绪</span>`
+						: "";
+					const details = isCustom
+						? `<span class="text-blue-300">系统已自动确认发布时间</span>`
+						: `<span>前: ${ev.previous || "--"}</span><span class="text-blue-400">预: ${ev.forecast || "--"}</span>`;
+
+					html += `<div class="flex gap-3 bg-gray-800/50 p-3 rounded-xl border border-gray-700 items-center">
                     <div class="flex flex-col items-center justify-center min-w-[50px] bg-gray-900 rounded-lg h-[50px] border border-gray-700 shadow-inner">
                         <span class="text-[10px] text-gray-500">${day}</span><span class="text-xs font-bold text-gray-300">${time}</span>
                     </div>
@@ -634,8 +645,12 @@
                         <div class="flex gap-3 mt-1 text-[10px] text-gray-400">${details}</div>
                     </div>
                 </div>`;
-					})
-					.join("");
+				});
+
+				if (!html)
+					html =
+						'<div class="text-center text-gray-500 text-sm py-10">未来 1 个月内无重要日程</div>';
+				container.innerHTML = html;
 			}
 
 			function renderIntelligenceNews() {
@@ -810,48 +825,39 @@
 				document
 					.getElementById("event-modal")
 					.classList.remove("hidden");
+				document.getElementById("ev-ticker").focus();
 			}
 			function closeModal() {
 				document.getElementById("event-modal").classList.add("hidden");
-				document.getElementById("ev-title").value = "";
-				document.getElementById("ev-date").value = "";
-				document.getElementById("ev-note").value = "";
+				document.getElementById("ev-ticker").value = "";
 			}
 
 			async function saveCustomEvent() {
 				if (!db) return alert("数据库未连接");
-				const title = document.getElementById("ev-title").value;
-				const dtVal = document.getElementById("ev-date").value;
-				const note = document.getElementById("ev-note").value;
-				if (!title || !dtVal) return alert("请填写名称和日期时间");
+				const ticker = document
+					.getElementById("ev-ticker")
+					.value.toUpperCase()
+					.trim();
+				if (!ticker) return alert("请输入股票代码");
 
-				const dt = new Date(dtVal);
-				const newEvent = {
-					title: title,
-					date: `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")} ${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")} (SGT)`,
-					timestamp: dt.getTime() / 1000,
-					type: "custom",
-					forecast: note,
-					previous: "",
-					actual: "",
-					analysis: "",
-				};
-
-				const docRef = db
-					.collection("market_data")
-					.doc("custom_calendar");
 				try {
-					await docRef.set(
-						{
-							events: firebase.firestore.FieldValue.arrayUnion(
-								newEvent,
-							),
-						},
-						{ merge: true },
-					);
+					// 仅需这一行代码：将股票代码推入后端的观察队列
+					await db
+						.collection("market_data")
+						.doc("watchlist")
+						.set(
+							{
+								tickers:
+									firebase.firestore.FieldValue.arrayUnion(
+										ticker,
+									),
+							},
+							{ merge: true },
+						);
+
 					closeModal();
 				} catch (e) {
-					alert("保存失败: " + e.message);
+					alert("提交失败: " + e.message);
 				}
 			}
 
