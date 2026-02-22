@@ -1,642 +1,343 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
-	<head>
-		<meta charset="UTF-8" />
-		<meta
-			name="viewport"
-			content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-		/>
-		<meta name="apple-mobile-web-app-capable" content="yes" />
-		<meta
-			name="apple-mobile-web-app-status-bar-style"
-			content="black-translucent"
-		/>
-		<meta name="theme-color" content="#111827" />
-		<title>MarketMind</title>
-		<script src="https://cdn.tailwindcss.com"></script>
-		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-		<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-		<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-		<script>
-			tailwind.config = {
-				theme: {
-					extend: {
-						colors: { gray: { 850: "#1f2937", 900: "#111827" } },
-					},
-				},
-			};
-		</script>
-		<style>
-			body {
-				overscroll-behavior-y: none;
-				-webkit-tap-highlight-color: transparent;
-			}
-			.hide-scrollbar::-webkit-scrollbar {
-				display: none;
-			}
-			.hide-scrollbar {
-				-ms-overflow-style: none;
-				scrollbar-width: none;
-			}
-			.chart-container {
-				position: relative;
-				width: 100%;
-				max-width: 600px;
-				height: 180px;
-				margin: 0 auto;
-			}
-			@media (min-width: 768px) {
-				.chart-container {
-					height: 220px;
-				}
-			}
-			.glass-nav {
-				background: rgba(17, 24, 39, 0.85);
-				backdrop-filter: blur(12px);
-				-webkit-backdrop-filter: blur(12px);
-				border-top: 1px solid rgba(55, 65, 81, 0.5);
-			}
-		</style>
-	</head>
-	<body
-		class="bg-gray-900 text-gray-100 font-sans antialiased flex flex-col h-screen overflow-hidden"
-	>
-		<header
-			class="flex-none bg-gray-900/95 z-40 px-5 pt-safe-top pb-3 border-b border-gray-800"
-		>
-			<div class="flex justify-between items-end h-12">
-				<div>
-					<h1 class="font-bold text-xl tracking-tight">
-						Market<span class="text-blue-500">Mind</span>
-					</h1>
-				</div>
-				<div class="text-right flex flex-col items-end">
-					<div
-						id="connection-status"
-						class="flex items-center gap-1 text-[10px] text-yellow-500"
-					>
-						<span class="animate-pulse">●</span> 连接中...
-					</div>
-					<div
-						id="last-update-time"
-						class="text-[10px] text-gray-500 font-mono"
-					>
-						--:--
-					</div>
-				</div>
-			</div>
-		</header>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#111827">
+    <title>MarketMind</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script>
+        tailwind.config = { theme: { extend: { colors: { gray: { 850: '#1f2937', 900: '#111827' } } } } }
+    </script>
+    <style>
+        body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .chart-container { position: relative; width: 100%; max-width: 600px; height: 180px; margin: 0 auto; }
+        @media (min-width: 768px) { .chart-container { height: 220px; } }
+        .glass-nav { background: rgba(17, 24, 39, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid rgba(55, 65, 81, 0.5); }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans antialiased flex flex-col h-screen overflow-hidden">
 
-		<main
-			class="flex-grow overflow-y-auto hide-scrollbar pb-24 relative"
-			id="main-scroll-area"
-		>
-			<section id="view-dashboard" class="p-5 space-y-6 block">
-				<p class="text-xs text-gray-400 mb-2">
-					主屏幕为您提炼当下最具交易价值的信号。
-				</p>
+    <header class="flex-none bg-gray-900/95 z-40 px-5 pt-safe-top pb-3 border-b border-gray-800">
+        <div class="flex justify-between items-end h-12">
+            <div><h1 class="font-bold text-xl tracking-tight">Market<span class="text-blue-500">Mind</span></h1></div>
+            <div class="text-right flex flex-col items-end">
+                <div id="connection-status" class="flex items-center gap-1 text-[10px] text-yellow-500"><span class="animate-pulse">●</span> 连接中...</div>
+                <div id="last-update-time" class="text-[10px] text-gray-500 font-mono">--:--</div>
+            </div>
+        </div>
+    </header>
 
-				<div
-					id="hero-event-container"
-					class="bg-gradient-to-br from-gray-800 to-gray-850 rounded-2xl p-5 border border-gray-700 shadow-xl relative overflow-hidden"
-				>
-					<div
-						class="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10"
-					></div>
-					<div
-						class="flex justify-between items-start mb-4 relative z-10"
-					>
-						<div>
-							<span
-								id="hero-event-type"
-								class="text-blue-400 text-xs font-bold tracking-wider uppercase"
-								>核心数据</span
-							>
-							<h2
-								id="hero-event-title"
-								class="text-lg font-bold text-white mt-1"
-							>
-								加载中...
-							</h2>
-						</div>
-						<div
-							id="hero-event-countdown"
-							class="bg-gray-900 text-blue-300 px-2 py-1 rounded text-xs font-mono border border-gray-700"
-						>
-							--:--:--
-						</div>
-					</div>
-					<div class="grid grid-cols-3 gap-3 relative z-10">
-						<div class="bg-gray-900/60 p-2 rounded text-center">
-							<div class="text-gray-500 text-[10px] uppercase">
-								前值
-							</div>
-							<div
-								id="hero-event-prev"
-								class="text-white font-mono font-bold text-sm"
-							>
-								--
-							</div>
-						</div>
-						<div
-							class="bg-gray-900/60 p-2 rounded text-center border border-blue-500/30"
-						>
-							<div class="text-blue-400 text-[10px] uppercase">
-								预测
-							</div>
-							<div
-								id="hero-event-fore"
-								class="text-blue-400 font-mono font-bold text-sm"
-							>
-								--
-							</div>
-						</div>
-						<div class="bg-gray-900/60 p-2 rounded text-center">
-							<div class="text-gray-500 text-[10px] uppercase">
-								实际
-							</div>
-							<div
-								id="hero-event-act"
-								class="text-gray-400 font-mono font-bold text-sm"
-							>
-								--
-							</div>
-						</div>
-					</div>
-					<div
-						id="hero-event-ai"
-						class="mt-3 text-xs text-gray-300 border-t border-gray-700/50 pt-2"
-					>
-						<span class="text-blue-400 font-bold">AI剧本:</span>
-						加载中...
-					</div>
-				</div>
+    <main class="flex-grow overflow-y-auto hide-scrollbar pb-24 relative" id="main-scroll-area">
+        <section id="view-dashboard" class="p-5 space-y-6 block">
+            <p class="text-xs text-gray-400 mb-2">主屏幕为您提炼当下最具交易价值的信号。</p>
+            
+            <div id="hero-event-container" class="bg-gradient-to-br from-gray-800 to-gray-850 rounded-2xl p-5 border border-gray-700 shadow-xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+                <div class="flex justify-between items-start mb-4 relative z-10">
+                    <div class="flex-1 mr-2">
+                        <span id="hero-event-type" class="text-blue-400 text-xs font-bold tracking-wider uppercase">核心数据</span>
+                        <h2 id="hero-event-title" class="text-lg font-bold text-white mt-1 leading-snug">加载中...</h2>
+                    </div>
+                    <div id="hero-event-countdown" class="bg-gray-900 text-blue-300 px-2 py-1 rounded text-xs font-mono border border-gray-700 whitespace-nowrap mt-1">--:--:--</div>
+                </div>
+                <div class="grid grid-cols-3 gap-3 relative z-10">
+                    <div class="bg-gray-900/60 p-2 rounded text-center"><div class="text-gray-500 text-[10px] uppercase">前值</div><div id="hero-event-prev" class="text-white font-mono font-bold text-sm">--</div></div>
+                    <div class="bg-gray-900/60 p-2 rounded text-center border border-blue-500/30"><div class="text-blue-400 text-[10px] uppercase">预测</div><div id="hero-event-fore" class="text-blue-400 font-mono font-bold text-sm">--</div></div>
+                    <div class="bg-gray-900/60 p-2 rounded text-center"><div class="text-gray-500 text-[10px] uppercase">实际</div><div id="hero-event-act" class="text-gray-400 font-mono font-bold text-sm">--</div></div>
+                </div>
+                <div id="hero-event-ai" class="mt-3 text-xs text-gray-300 border-t border-gray-700/50 pt-2"><span class="text-blue-400 font-bold">AI剧本:</span> 加载中...</div>
+                
+                <!-- 新增：数据自由切换器 -->
+                <div class="mt-3 border-t border-gray-700/50 pt-3 relative z-10">
+                    <label class="text-[10px] text-gray-500 uppercase font-bold">查看其他核心数据 AI 解读</label>
+                    <select id="macro-selector" onchange="handleMacroSelection(this.value)" class="w-full bg-gray-900 border border-gray-600 rounded p-1.5 text-xs text-white mt-1 outline-none appearance-none">
+                        <option value="">加载中...</option>
+                    </select>
+                </div>
+            </div>
 
-				<div>
-					<div class="flex justify-between items-end mb-3">
-						<h3
-							class="text-sm font-bold text-gray-300 uppercase tracking-wider"
-						>
-							市场多空力量 (AI判定)
-						</h3>
-					</div>
-					<div
-						class="bg-gray-800 rounded-xl p-4 border border-gray-700 shadow-lg"
-					>
-						<div class="chart-container">
-							<canvas id="sentimentChart"></canvas>
-						</div>
-						<p class="text-[10px] text-gray-500 text-center mt-2">
-							100% 基于当下最新突发新闻的 AI 评分聚合计算
-						</p>
-					</div>
-				</div>
+            <div>
+                <div class="flex justify-between items-end mb-3"><h3 class="text-sm font-bold text-gray-300 uppercase tracking-wider">市场多空力量 (AI判定)</h3></div>
+                <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 shadow-lg">
+                    <div class="chart-container"><canvas id="sentimentChart"></canvas></div>
+                    <p class="text-[10px] text-gray-500 text-center mt-2">基于过去24小时内突发新闻的 AI 评分聚合</p>
+                </div>
+            </div>
 
-				<div>
-					<div class="flex justify-between items-end mb-3">
-						<h3
-							class="text-sm font-bold text-gray-300 uppercase tracking-wider"
-						>
-							最高优情报
-						</h3>
-						<button
-							onclick="switchTab('news')"
-							class="text-xs text-blue-400 font-medium"
-						>
-							查看全部
-						</button>
-					</div>
-					<div id="dashboard-news-list" class="space-y-3">
-						<div class="text-center text-gray-500 text-sm py-4">
-							正在从数据库拉取...
-						</div>
-					</div>
-				</div>
-			</section>
+            <div>
+                <div class="flex justify-between items-end mb-3"><h3 class="text-sm font-bold text-gray-300 uppercase tracking-wider">Top 10 热点情报</h3><button onclick="switchTab('news')" class="text-xs text-blue-400 font-medium">查看全部</button></div>
+                <div id="dashboard-news-list" class="space-y-3"><div class="text-center text-gray-500 text-sm py-4">正在从数据库拉取...</div></div>
+            </div>
+        </section>
 
-			<section id="view-calendar" class="p-5 space-y-4 hidden relative">
-				<div class="flex justify-between items-center mb-4">
-					<p class="text-xs text-gray-400">
-						宏观数据与您的自选财报日历
-					</p>
-					<button
-						onclick="openModal()"
-						class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-1.5 px-3 rounded shadow"
-					>
-						➕ 订阅财报
-					</button>
-				</div>
-				<div id="calendar-list" class="space-y-3"></div>
-			</section>
+        <section id="view-calendar" class="p-5 space-y-4 hidden relative">
+            <div class="flex justify-between items-center mb-4">
+                <p class="text-xs text-gray-400">宏观数据与您的自选财报日历</p>
+                <button onclick="openModal()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-1.5 px-3 rounded shadow">➕ 订阅财报</button>
+            </div>
+            <div id="calendar-list" class="space-y-3"></div>
+        </section>
 
-			<section
-				id="view-news"
-				class="p-5 space-y-4 hidden flex flex-col h-full"
-			>
-				<p class="text-xs text-gray-400 mb-2">
-					经过 AI 严格筛选的突发高价值市场情报，评分 7
-					分以上予以展示。
-				</p>
-				<div class="flex gap-2 mb-2">
-					<button
-						onclick="filterNews('all')"
-						id="filter-all"
-						class="filter-btn px-3 py-1 rounded-full text-xs font-medium bg-blue-600 text-white border-transparent"
-					>
-						全部
-					</button>
-					<button
-						onclick="filterNews('bull')"
-						id="filter-bull"
-						class="filter-btn px-3 py-1 rounded-full text-xs font-medium bg-gray-800 text-gray-400 border border-gray-700"
-					>
-						看多
-					</button>
-					<button
-						onclick="filterNews('bear')"
-						id="filter-bear"
-						class="filter-btn px-3 py-1 rounded-full text-xs font-medium bg-gray-800 text-gray-400 border border-gray-700"
-					>
-						看空
-					</button>
-				</div>
-				<div id="intelligence-list" class="space-y-4 pb-10"></div>
-			</section>
+        <section id="view-news" class="p-5 space-y-4 hidden flex flex-col h-full">
+            <p class="text-xs text-gray-400 mb-2">过去 24 小时内全网突发情报，已通过 AI 严格评分排序。</p>
+            <div class="flex gap-2 mb-2">
+                <button onclick="filterNews('all')" id="filter-all" class="filter-btn px-3 py-1 rounded-full text-xs font-medium bg-blue-600 text-white border-transparent">全部</button>
+                <button onclick="filterNews('bull')" id="filter-bull" class="filter-btn px-3 py-1 rounded-full text-xs font-medium bg-gray-800 text-gray-400 border border-gray-700">看多</button>
+                <button onclick="filterNews('bear')" id="filter-bear" class="filter-btn px-3 py-1 rounded-full text-xs font-medium bg-gray-800 text-gray-400 border border-gray-700">看空</button>
+            </div>
+            <div id="intelligence-list" class="space-y-4 pb-10"></div>
+        </section>
+        
+        <section id="view-error" class="p-5 h-full flex flex-col items-center justify-center hidden">
+            <div class="text-4xl mb-4">⚠️</div>
+            <h2 class="text-xl font-bold text-yellow-500 mb-2">数据库尚未初始化</h2>
+            <p class="text-gray-300 text-sm mb-6 text-center">配置已生效，但你的项目需要在网页端创建一次数据库实例。</p>
+        </section>
+    </main>
 
-			<section
-				id="view-error"
-				class="p-5 h-full flex flex-col items-center justify-center hidden"
-			>
-				<div class="text-4xl mb-4">⚠️</div>
-				<h2 class="text-xl font-bold text-yellow-500 mb-2">
-					数据库尚未初始化
-				</h2>
-				<p class="text-gray-300 text-sm mb-6 text-center">
-					配置已生效，但你的项目需要在网页端创建一次数据库实例。
-				</p>
-			</section>
-		</main>
+    <nav class="fixed bottom-0 w-full glass-nav z-40 pb-safe">
+        <div class="flex justify-around items-center h-16 px-2">
+            <button onclick="switchTab('dashboard')" id="tab-dashboard" class="nav-tab flex flex-col items-center justify-center w-full h-full text-blue-500 transition-colors">
+                <span class="text-xl mb-1">📈</span><span class="text-[10px] font-bold">概览</span>
+            </button>
+            <button onclick="switchTab('calendar')" id="tab-calendar" class="nav-tab flex flex-col items-center justify-center w-full h-full text-gray-500 hover:text-gray-300 transition-colors">
+                <span class="text-xl mb-1">📅</span><span class="text-[10px] font-medium">日历</span>
+            </button>
+            <button onclick="switchTab('news')" id="tab-news" class="nav-tab flex flex-col items-center justify-center w-full h-full text-gray-500 hover:text-gray-300 transition-colors">
+                <span class="text-xl mb-1">🧠</span><span class="text-[10px] font-medium">情报</span>
+            </button>
+        </div>
+    </nav>
 
-		<nav class="fixed bottom-0 w-full glass-nav z-40 pb-safe">
-			<div class="flex justify-around items-center h-16 px-2">
-				<button
-					onclick="switchTab('dashboard')"
-					id="tab-dashboard"
-					class="nav-tab flex flex-col items-center justify-center w-full h-full text-blue-500 transition-colors"
-				>
-					<span class="text-xl mb-1">📈</span
-					><span class="text-[10px] font-bold">概览</span>
-				</button>
-				<button
-					onclick="switchTab('calendar')"
-					id="tab-calendar"
-					class="nav-tab flex flex-col items-center justify-center w-full h-full text-gray-500 hover:text-gray-300 transition-colors"
-				>
-					<span class="text-xl mb-1">📅</span
-					><span class="text-[10px] font-medium">日历</span>
-				</button>
-				<button
-					onclick="switchTab('news')"
-					id="tab-news"
-					class="nav-tab flex flex-col items-center justify-center w-full h-full text-gray-500 hover:text-gray-300 transition-colors"
-				>
-					<span class="text-xl mb-1">🧠</span
-					><span class="text-[10px] font-medium">情报</span>
-				</button>
-			</div>
-		</nav>
+    <!-- 极简联想输入弹窗 -->
+    <div id="event-modal" class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-sm p-6 shadow-2xl transform transition-all">
+            <h3 class="text-lg font-bold text-white mb-4">订阅财报提醒</h3>
+            <div class="space-y-4 relative">
+                <div>
+                    <label class="block text-xs text-gray-400 mb-2">搜索美股代码 (Ticker)</label>
+                    <input type="text" id="ev-ticker" oninput="handleTickerSearch(this.value)" placeholder="输入如 NVD, AAPL..." autocomplete="off" class="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white text-base font-bold tracking-wider focus:border-blue-500 outline-none uppercase placeholder-gray-600">
+                    <!-- 自动补全下拉框 -->
+                    <div id="ticker-suggestions" class="hidden absolute w-full bg-gray-700 border border-gray-600 rounded mt-1 z-50 max-h-40 overflow-y-auto shadow-xl"></div>
+                </div>
+                <div class="bg-blue-900/20 border border-blue-800/50 rounded p-3 text-xs text-blue-400">
+                    💡 请在下拉列表中点击确认代码。提交后，Python 引擎将自动获取精准财报日期。
+                </div>
+            </div>
+            <div class="mt-6 flex gap-3 justify-end">
+                <button onclick="closeModal()" class="px-4 py-2 rounded text-sm text-gray-400 hover:text-white transition-colors">取消</button>
+                <button onclick="saveCustomEvent()" id="btn-save-event" class="px-5 py-2 rounded text-sm bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all shadow-lg opacity-50 cursor-not-allowed" disabled>提交监控</button>
+            </div>
+        </div>
+    </div>
 
-		<!-- 极简输入弹窗 -->
-		<div
-			id="event-modal"
-			class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4"
-		>
-			<div
-				class="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-sm p-6 shadow-2xl transform transition-all"
-			>
-				<h3 class="text-lg font-bold text-white mb-4">订阅财报提醒</h3>
-				<div class="space-y-4">
-					<div>
-						<label class="block text-xs text-gray-400 mb-2"
-							>输入美股代码 (Ticker)</label
-						>
-						<input
-							type="text"
-							id="ev-ticker"
-							placeholder="如: NVDA, TSLA, AAPL"
-							autocomplete="off"
-							class="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white text-base font-bold tracking-wider focus:border-blue-500 outline-none uppercase placeholder-gray-600"
-						/>
-					</div>
-					<div
-						class="bg-blue-900/20 border border-blue-800/50 rounded p-3 text-xs text-blue-400"
-					>
-						💡 提交后，代码将推入后端队列。Python
-						引擎将在其下一次自动运行时，精准抓取该公司的最新财报日期并推送到日历中。
-					</div>
-				</div>
-				<div class="mt-6 flex gap-3 justify-end">
-					<button
-						onclick="closeModal()"
-						class="px-4 py-2 rounded text-sm text-gray-400 hover:text-white transition-colors"
-					>
-						取消
-					</button>
-					<button
-						onclick="saveCustomEvent()"
-						id="btn-save-event"
-						class="px-5 py-2 rounded text-sm bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all shadow-lg"
-					>
-						提交监控
-					</button>
-				</div>
-			</div>
-		</div>
+    <script>
+        // 🚀 使用 GitHub Actions 注入的占位符配置
+        const firebaseConfig = {
+            apiKey: "__FIREBASE_API_KEY__",
+            authDomain: "__FIREBASE_AUTH_DOMAIN__",
+            projectId: "__FIREBASE_PROJECT_ID__",
+            storageBucket: "__FIREBASE_STORAGE_BUCKET__",
+            messagingSenderId: "__FIREBASE_MESSAGING_SENDER_ID__",
+            appId: "__FIREBASE_APP_ID__",
+            measurementId: "__FIREBASE_MEASUREMENT_ID__"
+        };
 
-		<script>
-			// ⚠️ 请在此处填入你的配置信息
-			const firebaseConfig = {
-				apiKey: "AIzaSyAHnFy-RQTrJRIu4BFF4LnGA_PP6GWSDsk",
-				authDomain: "finance-app-447cc.firebaseapp.com",
-				projectId: "finance-app-447cc",
-				storageBucket: "finance-app-447cc.firebasestorage.app",
-				messagingSenderId: "453168549752",
-				appId: "1:453168549752:web:f8df55083f2aeb30c4028d",
-				measurementId: "G-ZM5V2VNLZR",
-			};
+        let db;
+        try {
+            if (firebaseConfig.apiKey && !firebaseConfig.apiKey.includes('__FIREBASE')) {
+                if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+            } else {
+                console.warn("未替换密钥。");
+            }
+        } catch (e) { showErrorState(); }
 
-			let db;
-			try {
-				if (!firebase.apps.length)
-					firebase.initializeApp(firebaseConfig);
-				db = firebase.firestore();
-			} catch (e) {
-				showErrorState();
-			}
+        const state = { macroData: [], newsData: [], customData: [], watchlist: [], currentTab: 'dashboard', currentNewsFilter: 'all', nextEventTimer: null, sentimentChart: null };
 
-			const state = {
-				macroData: [],
-				newsData: [],
-				customData: [],
-				watchlist: [],
-				currentTab: "dashboard",
-				currentNewsFilter: "all",
-				nextEventTimer: null,
-				sentimentChart: null,
-			};
+        function initDataListeners() {
+            const statusEl = document.getElementById('connection-status');
+            const timeEl = document.getElementById('last-update-time');
+            if (!db) return;
 
-			function initDataListeners() {
-				const statusEl = document.getElementById("connection-status");
-				const timeEl = document.getElementById("last-update-time");
-				if (!db) return;
+            const handleErr = (e, unsub) => { if (e.code === 'not-found') { showErrorState(); if(unsub) unsub(); } };
 
-				const handleErr = (e, unsub) => {
-					if (e.code === "not-found") {
-						showErrorState();
-						if (unsub) unsub();
-					}
-				};
+            let unsubM = db.collection('market_data').doc('macro').onSnapshot(doc => {
+                if (doc.exists) {
+                    state.macroData = doc.data().events || [];
+                    timeEl.innerText = doc.data().last_updated ? doc.data().last_updated.split(' ')[1] : '--:--';
+                    statusEl.innerHTML = '<span class="text-green-500">●</span> 已同步';
+                    statusEl.className = "flex items-center gap-1 text-[10px] text-gray-400";
+                    updateUI();
+                }
+            }, e => handleErr(e, unsubM));
 
-				let unsubM = db
-					.collection("market_data")
-					.doc("macro")
-					.onSnapshot(
-						(doc) => {
-							if (doc.exists) {
-								state.macroData = doc.data().events || [];
-								timeEl.innerText = doc.data().last_updated
-									? doc.data().last_updated.split(" ")[1]
-									: "--:--";
-								statusEl.innerHTML =
-									'<span class="text-green-500">●</span> 已同步';
-								statusEl.className =
-									"flex items-center gap-1 text-[10px] text-gray-400";
-								updateUI();
-							}
-						},
-						(e) => handleErr(e, unsubM),
-					);
+            let unsubN = db.collection('market_data').doc('news').onSnapshot(doc => {
+                if (doc.exists) { state.newsData = doc.data().articles || []; updateUI(); }
+            }, e => handleErr(e, unsubN));
 
-				let unsubN = db
-					.collection("market_data")
-					.doc("news")
-					.onSnapshot(
-						(doc) => {
-							if (doc.exists) {
-								state.newsData = doc.data().articles || [];
-								updateUI();
-							}
-						},
-						(e) => handleErr(e, unsubN),
-					);
+            let unsubC = db.collection('market_data').doc('custom_calendar').onSnapshot(doc => {
+                if (doc.exists) { state.customData = doc.data().events || []; updateUI(); }
+            }, e => handleErr(e, unsubC));
 
-				let unsubC = db
-					.collection("market_data")
-					.doc("custom_calendar")
-					.onSnapshot(
-						(doc) => {
-							if (doc.exists) {
-								state.customData = doc.data().events || [];
-								updateUI();
-							}
-						},
-						(e) => handleErr(e, unsubC),
-					);
+            let unsubW = db.collection('market_data').doc('watchlist').onSnapshot(doc => {
+                if (doc.exists) { state.watchlist = doc.data().tickers || []; updateUI(); }
+            }, e => handleErr(e, unsubW));
+        }
 
-				// 新增：监听用户的 watchlist
-				let unsubW = db
-					.collection("market_data")
-					.doc("watchlist")
-					.onSnapshot(
-						(doc) => {
-							if (doc.exists) {
-								state.watchlist = doc.data().tickers || [];
-								updateUI();
-							}
-						},
-						(e) => handleErr(e, unsubW),
-					);
-			}
+        function showErrorState() {
+            ['view-dashboard', 'view-calendar', 'view-news'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            document.getElementById('view-error').classList.remove('hidden');
+            if(document.getElementById('connection-status')) document.getElementById('connection-status').innerHTML = '<span class="text-red-500">●</span> 连接失败';
+        }
 
-			function showErrorState() {
-				["view-dashboard", "view-calendar", "view-news"].forEach((id) =>
-					document.getElementById(id).classList.add("hidden"),
-				);
-				document
-					.getElementById("view-error")
-					.classList.remove("hidden");
-				document.getElementById("connection-status").innerHTML =
-					'<span class="text-red-500">●</span> 连接失败';
-			}
+        function updateUI() { renderDashboardHero(); renderDashboardNews(); renderCalendar(); renderIntelligenceNews(); updateSentimentChart(); }
 
-			function updateUI() {
-				renderDashboardHero();
-				renderDashboardNews();
-				renderCalendar();
-				renderIntelligenceNews();
-				updateSentimentChart();
-			}
+        // 处理下拉框选择与记忆功能
+        function handleMacroSelection(timestampStr) {
+            localStorage.setItem('selectedMacroTs', timestampStr);
+            renderDashboardHero();
+        }
 
-			function renderDashboardHero() {
-				if (!state.macroData.length) {
-					document.getElementById("hero-event-title").innerText =
-						"暂无数据";
-					return;
-				}
-				const now = new Date().getTime() / 1000;
-				let targetEvent = state.macroData.find(
-					(e) => e.timestamp > now,
-				);
-				let isPast = false;
-				if (!targetEvent) {
-					targetEvent = state.macroData[state.macroData.length - 1];
-					isPast = true;
-				}
+        function renderDashboardHero() {
+            if (!state.macroData.length) { document.getElementById('hero-event-title').innerText = "暂无数据"; return; }
+            const now = new Date().getTime() / 1000;
+            
+            // 填充下拉框选项
+            const selector = document.getElementById('macro-selector');
+            if (selector.options.length <= 1 || selector.options[0].value === "") {
+                selector.innerHTML = state.macroData.map(ev => 
+                    `<option value="${ev.timestamp}">${ev.date.split(' ')[0].slice(5)} - ${ev.title}</option>`
+                ).join('');
+            }
 
-				document.getElementById("hero-event-title").innerText =
-					targetEvent.title;
-				document.getElementById("hero-event-prev").innerText =
-					targetEvent.previous || "--";
-				document.getElementById("hero-event-fore").innerText =
-					targetEvent.forecast || "--";
-				document.getElementById("hero-event-act").innerText =
-					targetEvent.actual || "--";
-				document.getElementById("hero-event-ai").innerHTML =
-					`<span class="text-blue-400 font-bold">AI解读:</span> ${targetEvent.analysis || "暂无详细分析"}`;
+            let targetIndex = -1;
+            const savedTs = localStorage.getItem('selectedMacroTs');
+            
+            // 如果有记忆，优先使用记忆
+            if (savedTs) {
+                targetIndex = state.macroData.findIndex(e => e.timestamp.toString() === savedTs);
+            }
 
-				const cEl = document.getElementById("hero-event-countdown");
-				const typeEl = document.getElementById("hero-event-type");
-				if (state.nextEventTimer) clearInterval(state.nextEventTimer);
+            // 如果没有记忆，执行智能寻找逻辑 (未来>3天则看历史)
+            if (targetIndex === -1) {
+                let nextEventIdx = state.macroData.findIndex(e => e.timestamp > now);
+                if (nextEventIdx === -1) {
+                    targetIndex = state.macroData.length - 1; // 全部都已发生，取最后一个
+                } else {
+                    const nextEvent = state.macroData[nextEventIdx];
+                    // 如果下一个数据在 3 天之后，且前面有已公布的数据，则显示已公布的数据
+                    if ((nextEvent.timestamp - now > 3 * 24 * 3600) && nextEventIdx > 0) {
+                        targetIndex = nextEventIdx - 1; 
+                    } else {
+                        targetIndex = nextEventIdx;
+                    }
+                }
+            }
 
-				if (isPast) {
-					typeEl.innerText = "最新已公布数据";
-					cEl.innerText = "已公布";
-					cEl.className =
-						"bg-gray-800 text-gray-400 px-2 py-1 rounded text-xs font-mono border border-gray-700";
-				} else {
-					typeEl.innerText = "即将公布核心数据";
-					state.nextEventTimer = setInterval(() => {
-						const diff =
-							targetEvent.timestamp - new Date().getTime() / 1000;
-						if (diff <= 0) {
-							cEl.innerText = "正在公布!";
-							cEl.className =
-								"bg-red-600 text-white px-2 py-1 rounded text-xs font-mono font-bold animate-pulse";
-							clearInterval(state.nextEventTimer);
-							return;
-						}
-						const h = Math.floor(diff / 3600)
-								.toString()
-								.padStart(2, "0"),
-							m = Math.floor((diff % 3600) / 60)
-								.toString()
-								.padStart(2, "0"),
-							s = Math.floor(diff % 60)
-								.toString()
-								.padStart(2, "0");
-						cEl.innerText = `T-${h}:${m}:${s}`;
-						cEl.className =
-							diff < 1800
-								? "bg-yellow-600/20 text-yellow-400 border-yellow-600/50 px-2 py-1 rounded text-xs font-mono"
-								: "bg-gray-900 text-blue-300 px-2 py-1 rounded text-xs font-mono border border-gray-700";
-					}, 1000);
-				}
-			}
+            // 最终目标数据
+            const targetEvent = state.macroData[targetIndex];
+            selector.value = targetEvent.timestamp.toString(); // 同步更新下拉框UI
 
-			function generateNewsCardHTML(news) {
-				const isBull = news.impact.includes("多"),
-					isBear = news.impact.includes("空");
-				const impactColor = isBull
-					? "text-green-400 bg-green-400/10 border-green-400/30"
-					: isBear
-						? "text-red-400 bg-red-400/10 border-red-400/30"
-						: "text-gray-400 bg-gray-400/10 border-gray-400/30";
-				const scoreColor =
-					news.score >= 9
-						? "bg-red-600 text-white"
-						: "bg-gray-700 text-gray-300";
-				const linkAttr = news.link
-					? `href="${news.link}" target="_blank" rel="noopener noreferrer"`
-					: "";
-				const hoverClass = news.link
-					? "hover:bg-gray-750 cursor-pointer block transition-colors active:bg-gray-700"
-					: "block";
+            const isPast = targetEvent.timestamp <= now;
 
-				return `<a ${linkAttr} class="bg-gray-800 rounded-xl p-4 border border-gray-700 relative overflow-hidden shadow-sm ${hoverClass}">
+            document.getElementById('hero-event-title').innerText = targetEvent.title;
+            document.getElementById('hero-event-prev').innerText = targetEvent.previous || '--';
+            document.getElementById('hero-event-fore').innerText = targetEvent.forecast || '--';
+            document.getElementById('hero-event-act').innerText = targetEvent.actual || '--';
+            document.getElementById('hero-event-ai').innerHTML = `<span class="text-blue-400 font-bold">AI解读:</span> ${targetEvent.analysis || '暂无详细分析'}`;
+
+            const cEl = document.getElementById('hero-event-countdown');
+            const typeEl = document.getElementById('hero-event-type');
+            if (state.nextEventTimer) clearInterval(state.nextEventTimer);
+
+            if (isPast) {
+                typeEl.innerText = "已公布核心数据";
+                cEl.innerText = "已公布";
+                cEl.className = "bg-gray-800 text-gray-400 px-2 py-1 rounded text-xs font-mono border border-gray-700 mt-1";
+            } else {
+                typeEl.innerText = "即将公布核心数据";
+                state.nextEventTimer = setInterval(() => {
+                    const diff = targetEvent.timestamp - (new Date().getTime() / 1000);
+                    if (diff <= 0) {
+                        cEl.innerText = "正在公布!";
+                        cEl.className = "bg-red-600 text-white px-2 py-1 rounded text-xs font-mono font-bold animate-pulse mt-1";
+                        clearInterval(state.nextEventTimer); return;
+                    }
+                    const h = Math.floor(diff / 3600).toString().padStart(2, '0'), m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0'), s = Math.floor(diff % 60).toString().padStart(2, '0');
+                    cEl.innerText = `T-${h}:${m}:${s}`;
+                    cEl.className = diff < 1800 ? "bg-yellow-600/20 text-yellow-400 border-yellow-600/50 px-2 py-1 rounded text-xs font-mono mt-1" : "bg-gray-900 text-blue-300 px-2 py-1 rounded text-xs font-mono border border-gray-700 mt-1";
+                }, 1000);
+            }
+        }
+
+        function generateNewsCardHTML(news) {
+            const isBull = news.impact.includes('多'), isBear = news.impact.includes('空');
+            const impactColor = isBull ? 'text-green-400 bg-green-400/10 border-green-400/30' : (isBear ? 'text-red-400 bg-red-400/10 border-red-400/30' : 'text-gray-400 bg-gray-400/10 border-gray-400/30');
+            const scoreColor = news.score >= 9 ? 'bg-red-600 text-white' : (news.score >= 7 ? 'bg-yellow-600 text-white' : 'bg-gray-700 text-gray-300');
+            const linkAttr = news.link ? `href="${news.link}" target="_blank" rel="noopener noreferrer"` : '';
+            const hoverClass = news.link ? 'hover:bg-gray-750 cursor-pointer block transition-colors active:bg-gray-700' : 'block';
+
+            return `<a ${linkAttr} class="bg-gray-800 rounded-xl p-4 border border-gray-700 relative overflow-hidden shadow-sm ${hoverClass}">
                 <div class="absolute top-0 right-0 px-2 py-1 text-[10px] font-bold rounded-bl-lg ${scoreColor}">${news.score} / 10</div>
                 <h4 class="text-white font-medium text-sm pr-10 leading-snug mb-3 group-hover:text-blue-400">${news.title}</h4>
                 <div class="flex gap-2 items-start flex-col sm:flex-row sm:items-center">
                     <span class="px-2 py-1 rounded border text-[10px] font-bold ${impactColor}">${news.impact}</span>
                     <p class="text-gray-400 text-xs flex-1 line-clamp-2"><span class="text-gray-300 font-bold">简评:</span> ${news.reason}</p>
                 </div></a>`;
-			}
+        }
 
-			function renderDashboardNews() {
-				const container = document.getElementById(
-					"dashboard-news-list",
-				);
-				if (!state.newsData.length) {
-					container.innerHTML =
-						'<div class="text-center text-gray-500 text-sm py-4">当前无重大市场异动</div>';
-					return;
-				}
-				container.innerHTML = [...state.newsData]
-					.sort((a, b) => b.score - a.score)
-					.slice(0, 3)
-					.map((n) => generateNewsCardHTML(n))
-					.join("");
-			}
+        function renderDashboardNews() {
+            const container = document.getElementById('dashboard-news-list');
+            if (!state.newsData.length) { container.innerHTML = '<div class="text-center text-gray-500 text-sm py-4">当前无市场情报</div>'; return; }
+            // 概览界面显示前十 (Top 10)
+            container.innerHTML = [...state.newsData].sort((a, b) => b.score - a.score).slice(0, 10).map(n => generateNewsCardHTML(n)).join('');
+        }
 
-			function renderCalendar() {
-				const container = document.getElementById("calendar-list");
-				const now = new Date().getTime() / 1000;
-				const oneMonthLater = now + 30 * 24 * 60 * 60;
+        function renderCalendar() {
+            const container = document.getElementById('calendar-list');
+            const now = new Date().getTime() / 1000;
+            const oneMonthLater = now + (30 * 24 * 60 * 60);
 
-				// 1. 已由后端确认抓取到的事件
-				const combined = [...state.macroData, ...state.customData]
-					.filter(
-						(ev) =>
-							ev.timestamp >= now &&
-							ev.timestamp <= oneMonthLater,
-					)
-					.sort((a, b) => a.timestamp - b.timestamp);
+            const combined = [...state.macroData, ...state.customData]
+                .filter(ev => ev.timestamp >= now && ev.timestamp <= oneMonthLater)
+                .sort((a, b) => a.timestamp - b.timestamp);
 
-				// 2. 识别哪些自选股还在排队中 (存在于 watchlist 但还未出现在 customData 中)
-				const syncedTickers = state.customData.map((ev) => ev.ticker);
-				const pendingTickers = state.watchlist.filter(
-					(t) => !syncedTickers.includes(t),
-				);
+            const syncedTickers = state.customData.map(ev => ev.ticker); 
+            const pendingTickers = state.watchlist.filter(t => !syncedTickers.includes(t));
 
-				let html = "";
+            let html = '';
 
-				// 渲染排队中的股票
-				pendingTickers.forEach((t) => {
-					html += `
+            pendingTickers.forEach(t => {
+                html += `
                 <div class="flex gap-3 bg-gray-800/30 p-3 rounded-xl border border-gray-700 items-center border-dashed">
                     <div class="flex flex-col items-center justify-center min-w-[50px] bg-gray-900/50 rounded-lg h-[50px] border border-gray-700">
                         <span class="text-xl animate-spin">⏳</span>
                     </div>
                     <div class="flex-1 min-w-0 opacity-70">
                         <h4 class="text-sm font-bold text-gray-300">${t} <span class="bg-blue-900/30 text-blue-400 border border-blue-800/50 px-1 rounded text-[8px] uppercase ml-1">排队同步中</span></h4>
-                        <div class="text-[10px] text-gray-500 mt-1">等待 Python 后端下次运行自动抓取财报日期...</div>
+                        <div class="text-[10px] text-gray-500 mt-1">等待云端引擎精准抓取财报日期...</div>
                     </div>
                 </div>`;
-				});
+            });
 
-				// 渲染正式日历
-				combined.forEach((ev) => {
-					const isCustom = ev.type === "custom";
-					const dateParts = ev.date.split(" ");
-					const day = dateParts[0] ? dateParts[0].slice(5) : "--";
-					const time = dateParts[1] ? dateParts[1] : "--";
-					const badge = isCustom
-						? `<span class="bg-green-900/40 text-green-400 border border-green-800 px-1 rounded text-[8px] uppercase ml-2">已就绪</span>`
-						: "";
-					const details = isCustom
-						? `<span class="text-blue-300">系统已自动确认发布时间</span>`
-						: `<span>前: ${ev.previous || "--"}</span><span class="text-blue-400">预: ${ev.forecast || "--"}</span>`;
+            combined.forEach(ev => {
+                const isCustom = ev.type === 'custom';
+                const dateParts = ev.date.split(' ');
+                const day = dateParts[0] ? dateParts[0].slice(5) : '--';
+                const time = dateParts[1] ? dateParts[1] : '--';
+                const badge = isCustom ? `<span class="bg-green-900/40 text-green-400 border border-green-800 px-1 rounded text-[8px] uppercase ml-2">已就绪</span>` : '';
+                const details = isCustom ? `<span class="text-blue-300">系统已自动确认发布时间</span>` : `<span>前: ${ev.previous || '--'}</span><span class="text-blue-400">预: ${ev.forecast || '--'}</span>`;
 
-					html += `<div class="flex gap-3 bg-gray-800/50 p-3 rounded-xl border border-gray-700 items-center">
+                html += `<div class="flex gap-3 bg-gray-800/50 p-3 rounded-xl border border-gray-700 items-center">
                     <div class="flex flex-col items-center justify-center min-w-[50px] bg-gray-900 rounded-lg h-[50px] border border-gray-700 shadow-inner">
                         <span class="text-[10px] text-gray-500">${day}</span><span class="text-xs font-bold text-gray-300">${time}</span>
                     </div>
@@ -645,226 +346,137 @@
                         <div class="flex gap-3 mt-1 text-[10px] text-gray-400">${details}</div>
                     </div>
                 </div>`;
-				});
+            });
 
-				if (!html)
-					html =
-						'<div class="text-center text-gray-500 text-sm py-10">未来 1 个月内无重要日程</div>';
-				container.innerHTML = html;
-			}
+            if (!html) html = '<div class="text-center text-gray-500 text-sm py-10">未来 1 个月内无重要日程</div>';
+            container.innerHTML = html;
+        }
 
-			function renderIntelligenceNews() {
-				const container = document.getElementById("intelligence-list");
-				let filtered = state.newsData || [];
-				if (state.currentNewsFilter === "bull")
-					filtered = filtered.filter((n) => n.impact.includes("多"));
-				else if (state.currentNewsFilter === "bear")
-					filtered = filtered.filter((n) => n.impact.includes("空"));
-				filtered.sort((a, b) => b.score - a.score);
-				container.innerHTML = filtered.length
-					? filtered.map((n) => generateNewsCardHTML(n)).join("")
-					: '<div class="text-center text-gray-500 text-sm py-10 border border-dashed border-gray-700 rounded-xl">无符合条件的情报</div>';
-			}
+        function renderIntelligenceNews() {
+            const container = document.getElementById('intelligence-list');
+            let filtered = state.newsData || [];
+            if (state.currentNewsFilter === 'bull') filtered = filtered.filter(n => n.impact.includes('多'));
+            else if (state.currentNewsFilter === 'bear') filtered = filtered.filter(n => n.impact.includes('空'));
+            
+            // 全量显示 (Intelligence Tab)
+            filtered.sort((a, b) => b.score - a.score);
+            container.innerHTML = filtered.length ? filtered.map(n => generateNewsCardHTML(n)).join('') : '<div class="text-center text-gray-500 text-sm py-10 border border-dashed border-gray-700 rounded-xl">无符合条件的情报</div>';
+        }
 
-			function updateSentimentChart() {
-				const ctx = document
-					.getElementById("sentimentChart")
-					.getContext("2d");
-				let bullPower = 0.1,
-					bearPower = 0.1;
-				if (state.newsData.length) {
-					bullPower = 0;
-					bearPower = 0;
-					state.newsData.forEach((n) => {
-						if (n.impact.includes("多")) bullPower += n.score;
-						if (n.impact.includes("空")) bearPower += n.score;
-					});
-				}
-				if (state.sentimentChart) {
-					state.sentimentChart.data.datasets[0].data = [
-						bullPower,
-						bearPower,
-					];
-					state.sentimentChart.update();
-					return;
-				}
-				Chart.defaults.color = "#9CA3AF";
-				Chart.defaults.font.family = "'Inter', sans-serif";
-				state.sentimentChart = new Chart(ctx, {
-					type: "bar",
-					data: {
-						labels: ["看多 (Bull)", "看空 (Bear)"],
-						datasets: [
-							{
-								data: [bullPower, bearPower],
-								backgroundColor: [
-									"rgba(16, 185, 129, 0.8)",
-									"rgba(239, 68, 68, 0.8)",
-								],
-								borderColor: ["#10B981", "#EF4444"],
-								borderWidth: 1,
-								borderRadius: 4,
-								barThickness: 20,
-							},
-						],
-					},
-					options: {
-						indexAxis: "y",
-						responsive: true,
-						maintainAspectRatio: false,
-						plugins: {
-							legend: { display: false },
-							tooltip: {
-								backgroundColor: "rgba(17, 24, 39, 0.95)",
-								titleColor: "#fff",
-								bodyColor: "#e5e7eb",
-								borderColor: "#374151",
-								borderWidth: 1,
-								padding: 10,
-								callbacks: {
-									label: (c) =>
-										` 强度: ${c.parsed.x.toFixed(1)} 分`,
-								},
-							},
-						},
-						scales: {
-							x: {
-								grid: {
-									color: "rgba(55, 65, 81, 0.3)",
-									borderDash: [5, 5],
-								},
-								beginAtZero: true,
-								title: {
-									display: true,
-									text: "累计评分 (Score)",
-									font: { size: 10 },
-								},
-							},
-							y: {
-								grid: { display: false, drawBorder: false },
-								ticks: {
-									font: { size: 12, weight: "bold" },
-									color: "#D1D5DB",
-								},
-							},
-						},
-					},
-				});
-			}
+        function updateSentimentChart() {
+            const ctx = document.getElementById('sentimentChart').getContext('2d');
+            let bullPower = 0.1, bearPower = 0.1;
+            if (state.newsData.length) {
+                bullPower = 0; bearPower = 0;
+                state.newsData.forEach(n => { if(n.impact.includes('多')) bullPower += n.score; if(n.impact.includes('空')) bearPower += n.score; });
+            }
+            if (state.sentimentChart) {
+                state.sentimentChart.data.datasets[0].data = [bullPower, bearPower]; state.sentimentChart.update(); return;
+            }
+            Chart.defaults.color = '#9CA3AF'; Chart.defaults.font.family = "'Inter', sans-serif";
+            state.sentimentChart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: ['看多力量 (Bull)', '看空力量 (Bear)'], datasets: [{ data: [bullPower, bearPower], backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(239, 68, 68, 0.8)'], borderColor: ['#10B981', '#EF4444'], borderWidth: 1, borderRadius: 4, barThickness: 20 }] },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(17, 24, 39, 0.95)', titleColor: '#fff', bodyColor: '#e5e7eb', borderColor: '#374151', borderWidth: 1, padding: 10, callbacks: { label: c => ` 强度: ${c.parsed.x.toFixed(1)} 分` } } }, scales: { x: { grid: { color: 'rgba(55, 65, 81, 0.3)', borderDash: [5, 5] }, beginAtZero: true, title: { display: true, text: '累计评分 (Score)', font: { size: 10 } } }, y: { grid: { display: false, drawBorder: false }, ticks: { font: { size: 12, weight: 'bold' }, color: '#D1D5DB' } } } }
+            });
+        }
 
-			function switchTab(tabId) {
-				state.currentTab = tabId;
-				[
-					"view-dashboard",
-					"view-calendar",
-					"view-news",
-					"view-error",
-				].forEach((id) =>
-					document.getElementById(id).classList.add("hidden"),
-				);
-				document
-					.getElementById(`view-${tabId}`)
-					.classList.remove("hidden");
-				["dashboard", "calendar", "news"].forEach((t) => {
-					const btn = document.getElementById(`tab-${t}`);
-					if (t === tabId) {
-						btn.classList.remove(
-							"text-gray-500",
-							"hover:text-gray-300",
-						);
-						btn.classList.add("text-blue-500");
-						btn.querySelector(
-							"span:nth-child(2)",
-						).classList.replace("font-medium", "font-bold");
-					} else {
-						btn.classList.remove("text-blue-500");
-						btn.classList.add(
-							"text-gray-500",
-							"hover:text-gray-300",
-						);
-						btn.querySelector(
-							"span:nth-child(2)",
-						).classList.replace("font-bold", "font-medium");
-					}
-				});
-				document.getElementById("main-scroll-area").scrollTop = 0;
-			}
+        function switchTab(tabId) {
+            state.currentTab = tabId;
+            ['view-dashboard', 'view-calendar', 'view-news', 'view-error'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            ['dashboard', 'calendar', 'news'].forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                if (t === tabId) {
+                    btn.classList.remove('text-gray-500', 'hover:text-gray-300'); btn.classList.add('text-blue-500');
+                    btn.querySelector('span:nth-child(2)').classList.replace('font-medium', 'font-bold');
+                } else {
+                    btn.classList.remove('text-blue-500'); btn.classList.add('text-gray-500', 'hover:text-gray-300');
+                    btn.querySelector('span:nth-child(2)').classList.replace('font-bold', 'font-medium');
+                }
+            });
+            document.getElementById('main-scroll-area').scrollTop = 0;
+        }
 
-			function filterNews(type) {
-				state.currentNewsFilter = type;
-				["all", "bull", "bear"].forEach((b) => {
-					const el = document.getElementById(`filter-${b}`);
-					if (b === type) {
-						el.classList.remove(
-							"bg-gray-800",
-							"text-gray-400",
-							"border-gray-700",
-						);
-						el.classList.add(
-							"bg-blue-600",
-							"text-white",
-							"border-transparent",
-						);
-					} else {
-						el.classList.remove(
-							"bg-blue-600",
-							"text-white",
-							"border-transparent",
-						);
-						el.classList.add(
-							"bg-gray-800",
-							"text-gray-400",
-							"border-gray-700",
-						);
-					}
-				});
-				renderIntelligenceNews();
-			}
+        function filterNews(type) {
+            state.currentNewsFilter = type;
+            ['all', 'bull', 'bear'].forEach(b => {
+                const el = document.getElementById(`filter-${b}`);
+                if (b === type) { el.classList.remove('bg-gray-800', 'text-gray-400', 'border-gray-700'); el.classList.add('bg-blue-600', 'text-white', 'border-transparent'); }
+                else { el.classList.remove('bg-blue-600', 'text-white', 'border-transparent'); el.classList.add('bg-gray-800', 'text-gray-400', 'border-gray-700'); }
+            });
+            renderIntelligenceNews();
+        }
 
-			function openModal() {
-				document
-					.getElementById("event-modal")
-					.classList.remove("hidden");
-				document.getElementById("ev-ticker").focus();
-			}
-			function closeModal() {
-				document.getElementById("event-modal").classList.add("hidden");
-				document.getElementById("ev-ticker").value = "";
-			}
+        // ==========================================
+        // 前端安全代码检索 (CORS Proxy)
+        // ==========================================
+        let searchTimeout;
+        function handleTickerSearch(val) {
+            const query = val.toUpperCase().trim();
+            const box = document.getElementById('ticker-suggestions');
+            if (!query) { box.classList.add('hidden'); return; }
 
-			async function saveCustomEvent() {
-				if (!db) return alert("数据库未连接");
-				const ticker = document
-					.getElementById("ev-ticker")
-					.value.toUpperCase()
-					.trim();
-				if (!ticker) return alert("请输入股票代码");
+            box.innerHTML = '<div class="p-3 text-xs text-blue-400 animate-pulse">验证代码中...</div>';
+            box.classList.remove('hidden');
 
-				try {
-					// 仅需这一行代码：将股票代码推入后端的观察队列
-					await db
-						.collection("market_data")
-						.doc("watchlist")
-						.set(
-							{
-								tickers:
-									firebase.firestore.FieldValue.arrayUnion(
-										ticker,
-									),
-							},
-							{ merge: true },
-						);
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const url = `https://corsproxy.io/?https://query2.finance.yahoo.com/v1/finance/search?q=${query}&quotesCount=5`;
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    const quotes = data.quotes.filter(q => q.isYahooFinance && (q.quoteType === 'EQUITY' || q.quoteType === 'ETF'));
+                    
+                    if (quotes.length > 0) {
+                        box.innerHTML = quotes.map(s => {
+                            const shortName = s.shortname ? s.shortname.replace(/'/g, "\\'") : s.symbol;
+                            return `<div onclick="selectTicker('${s.symbol}')" class="p-3 hover:bg-gray-600 cursor-pointer text-sm border-b border-gray-600 last:border-0 transition-colors">
+                                <span class="font-bold text-white">${s.symbol}</span> <span class="text-gray-400 text-xs ml-1">${s.shortname || ''}</span>
+                            </div>`;
+                        }).join('');
+                    } else {
+                        box.innerHTML = '<div class="p-3 text-xs text-gray-400">未找到有效美股代码</div>';
+                    }
+                } catch (error) {
+                    box.innerHTML = '<div class="p-3 text-xs text-red-400">网络异常，请直接强行提交</div>';
+                }
+            }, 500);
+        }
 
-					closeModal();
-				} catch (e) {
-					alert("提交失败: " + e.message);
-				}
-			}
+        // 必须点击下拉列表中的项，才能解锁提交按钮
+        function selectTicker(symbol) {
+            document.getElementById('ev-ticker').value = symbol;
+            document.getElementById('ticker-suggestions').classList.add('hidden');
+            const btn = document.getElementById('btn-save-event');
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            btn.disabled = false;
+        }
 
-			document.addEventListener("DOMContentLoaded", () => {
-				initDataListeners();
-				updateSentimentChart();
-			});
-		</script>
-	</body>
+        function openModal() { document.getElementById('event-modal').classList.remove('hidden'); document.getElementById('ev-ticker').focus(); }
+        function closeModal() { 
+            document.getElementById('event-modal').classList.add('hidden'); 
+            document.getElementById('ev-ticker').value = ''; 
+            document.getElementById('ticker-suggestions').classList.add('hidden');
+            const btn = document.getElementById('btn-save-event');
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            btn.disabled = true;
+        }
+        
+        async function saveCustomEvent() {
+            if (!db) return alert('数据库未连接');
+            const ticker = document.getElementById('ev-ticker').value.toUpperCase().trim();
+            if(!ticker) return alert('无效代码');
+
+            try {
+                await db.collection('market_data').doc('watchlist').set({ 
+                    tickers: firebase.firestore.FieldValue.arrayUnion(ticker) 
+                }, { merge: true });
+                closeModal();
+            } catch (e) { alert('提交失败: ' + e.message); }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => { initDataListeners(); updateSentimentChart(); });
+    </script>
+</body>
 </html>
