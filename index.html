@@ -55,7 +55,7 @@
                 </div>
                 <div id="hero-event-ai" class="mt-3 text-xs text-gray-300 border-t border-gray-700/50 pt-2"><span class="text-blue-400 font-bold">AI剧本:</span> 加载中...</div>
                 
-                <!-- 新增：数据自由切换器 -->
+                <!-- 数据自由切换器 -->
                 <div class="mt-3 border-t border-gray-700/50 pt-3 relative z-10">
                     <label class="text-[10px] text-gray-500 uppercase font-bold">查看其他核心数据 AI 解读</label>
                     <select id="macro-selector" onchange="handleMacroSelection(this.value)" class="w-full bg-gray-900 border border-gray-600 rounded p-1.5 text-xs text-white mt-1 outline-none appearance-none">
@@ -195,20 +195,28 @@
             if(document.getElementById('connection-status')) document.getElementById('connection-status').innerHTML = '<span class="text-red-500">●</span> 连接失败';
         }
 
-        function updateUI() { renderDashboardHero(); renderDashboardNews(); renderCalendar(); renderIntelligenceNews(); updateSentimentChart(); }
+        function updateUI() { 
+            renderDashboardHero(false); // 传入 false 表示并非因选择框触发更新，但需根据数据重绘
+            renderDashboardNews(); 
+            renderCalendar(); 
+            renderIntelligenceNews(); 
+            updateSentimentChart(); 
+        }
 
         // 处理下拉框选择与记忆功能
         function handleMacroSelection(timestampStr) {
             localStorage.setItem('selectedMacroTs', timestampStr);
-            renderDashboardHero();
+            renderDashboardHero(true); // 传入 true 表示由用户选择触发
         }
 
-        function renderDashboardHero() {
+        // isFromSelection 标记是否由用户直接操作下拉框触发
+        function renderDashboardHero(isFromSelection = false) {
             if (!state.macroData.length) { document.getElementById('hero-event-title').innerText = "暂无数据"; return; }
             const now = new Date().getTime() / 1000;
             
-            // 填充下拉框选项
             const selector = document.getElementById('macro-selector');
+            
+            // 只有在下拉框为空（初次加载）时才重新生成 options 列表
             if (selector.options.length <= 1 || selector.options[0].value === "") {
                 selector.innerHTML = state.macroData.map(ev => 
                     `<option value="${ev.timestamp}">${ev.date.split(' ')[0].slice(5)} - ${ev.title}</option>`
@@ -241,7 +249,11 @@
 
             // 最终目标数据
             const targetEvent = state.macroData[targetIndex];
-            selector.value = targetEvent.timestamp.toString(); // 同步更新下拉框UI
+            
+            // 如果是初始加载或非用户选择引起的重绘，确保下拉框的值与显示事件一致
+            if (!isFromSelection && selector.value !== targetEvent.timestamp.toString()) {
+                 selector.value = targetEvent.timestamp.toString();
+            }
 
             const isPast = targetEvent.timestamp <= now;
 
