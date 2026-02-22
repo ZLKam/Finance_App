@@ -140,25 +140,21 @@
     </div>
 
     <script>
-        // 🚀 使用 GitHub Actions 注入的占位符配置
+        // 🚀 恢复为原始的 Firebase 配置
         const firebaseConfig = {
-            apiKey: "__FIREBASE_API_KEY__",
-            authDomain: "__FIREBASE_AUTH_DOMAIN__",
-            projectId: "__FIREBASE_PROJECT_ID__",
-            storageBucket: "__FIREBASE_STORAGE_BUCKET__",
-            messagingSenderId: "__FIREBASE_MESSAGING_SENDER_ID__",
-            appId: "__FIREBASE_APP_ID__",
-            measurementId: "__FIREBASE_MEASUREMENT_ID__"
+            apiKey: "AIzaSyAHnFy-RQTrJRIu4BFF4LnGA_PP6GWSDsk",
+            authDomain: "finance-app-447cc.firebaseapp.com",
+            projectId: "finance-app-447cc",
+            storageBucket: "finance-app-447cc.firebasestorage.app",
+            messagingSenderId: "453168549752",
+            appId: "1:453168549752:web:f8df55083f2aeb30c4028d",
+            measurementId: "G-ZM5V2VNLZR"
         };
 
         let db;
         try {
-            if (firebaseConfig.apiKey && !firebaseConfig.apiKey.includes('__FIREBASE')) {
-                if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-                db = firebase.firestore();
-            } else {
-                console.warn("未替换密钥。");
-            }
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
         } catch (e) { showErrorState(); }
 
         const state = { macroData: [], newsData: [], customData: [], watchlist: [], currentTab: 'dashboard', currentNewsFilter: 'all', nextEventTimer: null, sentimentChart: null };
