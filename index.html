@@ -140,7 +140,7 @@
     </div>
 
     <script>
-        // 🚀 恢复为原始的 Firebase 配置
+        // 🚀 保持 Firebase 配置为你指定的直接写入方式
         const firebaseConfig = {
             apiKey: "AIzaSyAHnFy-RQTrJRIu4BFF4LnGA_PP6GWSDsk",
             authDomain: "finance-app-447cc.firebaseapp.com",
@@ -196,49 +196,45 @@
         }
 
         function updateUI() { 
-            renderDashboardHero(false); // 传入 false 表示并非因选择框触发更新，但需根据数据重绘
+            renderDashboardHero(false); 
             renderDashboardNews(); 
             renderCalendar(); 
             renderIntelligenceNews(); 
             updateSentimentChart(); 
         }
 
-        // 处理下拉框选择与记忆功能
-        function handleMacroSelection(timestampStr) {
-            localStorage.setItem('selectedMacroTs', timestampStr);
-            renderDashboardHero(true); // 传入 true 表示由用户选择触发
+        // 处理下拉框选择与记忆功能 (重点修复)
+        function handleMacroSelection(uniqueKeyStr) {
+            localStorage.setItem('selectedMacroKey', uniqueKeyStr);
+            renderDashboardHero(true); 
         }
 
-        // isFromSelection 标记是否由用户直接操作下拉框触发
         function renderDashboardHero(isFromSelection = false) {
             if (!state.macroData.length) { document.getElementById('hero-event-title').innerText = "暂无数据"; return; }
             const now = new Date().getTime() / 1000;
-            
             const selector = document.getElementById('macro-selector');
             
-            // 只有在下拉框为空（初次加载）时才重新生成 options 列表
-            if (selector.options.length <= 1 || selector.options[0].value === "") {
-                selector.innerHTML = state.macroData.map(ev => 
-                    `<option value="${ev.timestamp}">${ev.date.split(' ')[0].slice(5)} - ${ev.title}</option>`
-                ).join('');
-            }
-
-            let targetIndex = -1;
-            const savedTs = localStorage.getItem('selectedMacroTs');
+            // 每次拉取数据后更新下拉列表，但使用 "timestamp|title" 作为绝对唯一标识符 (修复同时间数据的 Bug)
+            const currentSelected = selector.value;
+            selector.innerHTML = state.macroData.map(ev => 
+                `<option value="${ev.timestamp}|${ev.title}">${ev.date.split(' ')[0].slice(5)} - ${ev.title}</option>`
+            ).join('');
             
-            // 如果有记忆，优先使用记忆
-            if (savedTs) {
-                targetIndex = state.macroData.findIndex(e => e.timestamp.toString() === savedTs);
+            let targetIndex = -1;
+            const savedKey = localStorage.getItem('selectedMacroKey');
+            
+            // 根据唯一标识符寻找目标数据
+            if (savedKey) {
+                targetIndex = state.macroData.findIndex(e => (`${e.timestamp}|${e.title}`) === savedKey);
             }
 
-            // 如果没有记忆，执行智能寻找逻辑 (未来>3天则看历史)
+            // 若没找到或没有记忆，执行智能寻找逻辑
             if (targetIndex === -1) {
                 let nextEventIdx = state.macroData.findIndex(e => e.timestamp > now);
                 if (nextEventIdx === -1) {
-                    targetIndex = state.macroData.length - 1; // 全部都已发生，取最后一个
+                    targetIndex = state.macroData.length - 1; 
                 } else {
                     const nextEvent = state.macroData[nextEventIdx];
-                    // 如果下一个数据在 3 天之后，且前面有已公布的数据，则显示已公布的数据
                     if ((nextEvent.timestamp - now > 3 * 24 * 3600) && nextEventIdx > 0) {
                         targetIndex = nextEventIdx - 1; 
                     } else {
@@ -247,12 +243,14 @@
                 }
             }
 
-            // 最终目标数据
             const targetEvent = state.macroData[targetIndex];
-            
-            // 如果是初始加载或非用户选择引起的重绘，确保下拉框的值与显示事件一致
-            if (!isFromSelection && selector.value !== targetEvent.timestamp.toString()) {
-                 selector.value = targetEvent.timestamp.toString();
+            const targetKey = `${targetEvent.timestamp}|${targetEvent.title}`;
+
+            // UI 同步：确保下拉框显示当前查看的数据
+            if (!isFromSelection && selector.value !== targetKey) {
+                 selector.value = targetKey;
+            } else if (isFromSelection) {
+                 selector.value = savedKey; // 维持用户手动点击的选择
             }
 
             const isPast = targetEvent.timestamp <= now;
@@ -306,7 +304,6 @@
         function renderDashboardNews() {
             const container = document.getElementById('dashboard-news-list');
             if (!state.newsData.length) { container.innerHTML = '<div class="text-center text-gray-500 text-sm py-4">当前无市场情报</div>'; return; }
-            // 概览界面显示前十 (Top 10)
             container.innerHTML = [...state.newsData].sort((a, b) => b.score - a.score).slice(0, 10).map(n => generateNewsCardHTML(n)).join('');
         }
 
@@ -366,7 +363,6 @@
             if (state.currentNewsFilter === 'bull') filtered = filtered.filter(n => n.impact.includes('多'));
             else if (state.currentNewsFilter === 'bear') filtered = filtered.filter(n => n.impact.includes('空'));
             
-            // 全量显示 (Intelligence Tab)
             filtered.sort((a, b) => b.score - a.score);
             container.innerHTML = filtered.length ? filtered.map(n => generateNewsCardHTML(n)).join('') : '<div class="text-center text-gray-500 text-sm py-10 border border-dashed border-gray-700 rounded-xl">无符合条件的情报</div>';
         }
@@ -416,9 +412,6 @@
             renderIntelligenceNews();
         }
 
-        // ==========================================
-        // 前端安全代码检索 (CORS Proxy)
-        // ==========================================
         let searchTimeout;
         function handleTickerSearch(val) {
             const query = val.toUpperCase().trim();
@@ -452,7 +445,6 @@
             }, 500);
         }
 
-        // 必须点击下拉列表中的项，才能解锁提交按钮
         function selectTicker(symbol) {
             document.getElementById('ev-ticker').value = symbol;
             document.getElementById('ticker-suggestions').classList.add('hidden');

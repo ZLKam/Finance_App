@@ -28,6 +28,9 @@ def get_firebase_db():
         print(f"☁️ ❌ Firebase 连接失败: {e}")
         return None
 
+# ==========================================
+# 模块 1: 抓取前端订阅的自选股财报 (已修复雅虎反爬拦截)
+# ==========================================
 def fetch_watchlist_earnings(db):
     if not db: return []
     print("正在处理前端发来的自选股财报订阅队列...")
@@ -39,30 +42,56 @@ def fetch_watchlist_earnings(db):
             
         custom_events = []
         for ticker in tickers:
-            url = f"https://query2.finance.yahoo.com/v10/finance/quoteSummary/{ticker}?modules=calendarEvents"
-            headers = {'User-Agent': 'Mozilla/5.0'}
+            # 核心修复：更换为更底层且免 Cookie 的 v7 quote 接口
+            url = f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={ticker}"
+            # 伪装成真实的 Chrome 浏览器请求
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'application/json'
+            }
             try:
                 res = requests.get(url, headers=headers, timeout=10)
                 if res.status_code == 200:
-                    earnings_list = res.json().get('quoteSummary', {}).get('result', [{}])[0].get('calendarEvents', {}).get('earnings', {}).get('earningsDate', [])
-                    if earnings_list:
-                        ts = earnings_list[0].get('raw')
-                        dt = datetime.fromtimestamp(ts, tz=timezone.utc)
-                        display_time = dt.astimezone(ZoneInfo("Asia/Singapore")).strftime("%Y-%m-%d %H:%M") + " (SGT)"
-                        custom_events.append({
-                            "title": f"{ticker} 财报", "ticker": ticker, "date": display_time, "timestamp": ts,
-                            "type": "custom", "forecast": "盘前/盘后", "previous": "--", "actual": "--"
-                        })
-            except Exception as e: pass
+                    data = res.json()
+                    result = data.get('quoteResponse', {}).get('result', [])
+                    if result:
+                        # 精准提取财报时间戳
+                        ts = result[0].get('earningsTimestamp')
+                        if ts:
+                            dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+                            display_time = dt.astimezone(ZoneInfo("Asia/Singapore")).strftime("%Y-%m-%d %H:%M") + " (SGT)"
+                            custom_events.append({
+                                "title": f"{ticker} 财报", 
+                                "ticker": ticker, 
+                                "date": display_time, 
+                                "timestamp": ts,
+                                "type": "custom", 
+                                "forecast": "关注财报指引", 
+                                "previous": "--", 
+                                "actual": "--"
+                            })
+                            print(f"✅ 成功锁定 {ticker} 财报日: {display_time}")
+                        else:
+                            print(f"⚠️ {ticker} 暂无未来财报日期数据")
+                    else:
+                        print(f"⚠️ 找不到 {ticker} 的股票数据")
+                else:
+                    print(f"❌ 请求 {ticker} 被拒绝，状态码: {res.status_code}")
+            except Exception as e: 
+                print(f"❌ 解析 {ticker} 异常: {e}")
+                
         return custom_events
-    except Exception as e: return []
+    except Exception as e: 
+        print(f"❌ 同步自选股整体异常: {e}")
+        return []
 
+# ==========================================
+# 模块 2 & 3: 宏观数据与新闻抓取分析
+# ==========================================
 def fetch_macro_events():
     print("正在获取当前一周及未来一个月的核心宏观数据...")
     now_utc = datetime.now(timezone.utc)
-    # 起始点：本周一
     start_of_week = (now_utc - timedelta(days=now_utc.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
-    # 终点：本周一 + 37天 (包含本周及未来一个月)
     end_of_window = start_of_week + timedelta(days=37) 
     
     start_str = start_of_week.strftime('%Y-%m-%dT%H:%M:%S.000Z')
@@ -104,7 +133,6 @@ def fetch_latest_news():
         now_utc = datetime.now(timezone.utc)
         
         for entry in feed.entries:
-            # 自动新陈代谢：极其严格地剔除 24 小时前的旧新闻，防止数据库拥堵
             if hasattr(entry, 'published_parsed') and entry.published_parsed:
                 dt = datetime.fromtimestamp(calendar.timegm(entry.published_parsed), tz=timezone.utc)
                 if now_utc - dt > timedelta(hours=24):
@@ -139,7 +167,6 @@ def analyze_news_with_gemini(news_entries):
         result_text = model.generate_content(prompt).text.strip().removeprefix("```json").removesuffix("```").strip()
         
         analyzed_news = []
-        # 返回所有新闻的评分给前端展示，不再限制只返回 >=7 分的
         for item in json.loads(result_text):
             orig = news_entries[item['id']]
             analyzed_news.append({
@@ -196,14 +223,13 @@ if __name__ == "__main__":
         try:
             timestamp = datetime.now(ZoneInfo("Asia/Singapore")).strftime('%Y-%m-%d %H:%M:%S')
             if all_macro_data: db.collection('market_data').document('macro').set({'events': all_macro_data, 'last_updated': timestamp})
-            # 存入数据库的是包含了所有评分新闻的数据 (会自动覆盖昨日旧数据)
             if analyzed_news: db.collection('market_data').document('news').set({'articles': analyzed_news, 'last_updated': timestamp})
             if custom_events is not None: db.collection('market_data').document('custom_calendar').set({'events': custom_events, 'last_updated': timestamp})
             print("\n☁️ ✅ 核心数据已全部同步至 Firebase 数据库！")
         except Exception as e:
             print(f"\n☁️ ❌ Firebase 上传失败: {e}")
 
-    # Telegram 推送逻辑保持严谨
+    # Telegram 推送
     today_sgt = datetime.now(ZoneInfo("Asia/Singapore")).date()
     today_macro = [ev for ev in all_macro_data if datetime.fromtimestamp(ev['timestamp'], tz=ZoneInfo("Asia/Singapore")).date() == today_sgt]
     
@@ -216,7 +242,6 @@ if __name__ == "__main__":
         
     if analyzed_news:
         for news in analyzed_news:
-            # 只有极度重要的新闻 (>7分) 才会吵闹手机
             if news['score'] >= 7:
                 tg_msg = f"🚨 **重要情报 ({news['score']}/10)**\n\n📰 **{news['title']}**\n📈 方向: {news['impact']}\n💡 **AI**: {news['reason']}\n🔗 [阅读]({news.get('link','')})\n"
                 send_telegram_alert(tg_msg)
