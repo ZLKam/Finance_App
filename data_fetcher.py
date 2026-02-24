@@ -29,7 +29,7 @@ def get_firebase_db():
         return None
 
 # ==========================================
-# 模块 1: 抓取前端订阅的自选股财报 (已修复雅虎反爬拦截)
+# 模块 1: 抓取前端订阅的自选股财报 (数据源升级为 TradingView)
 # ==========================================
 def fetch_watchlist_earnings(db):
     if not db: return []
@@ -41,45 +41,56 @@ def fetch_watchlist_earnings(db):
         if not tickers: return []
             
         custom_events = []
+        
+        # 核心修复：彻底抛弃雅虎财经，使用 TradingView 开放选股器 API
+        url = "https://scanner.tradingview.com/america/scan"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Content-Type": "application/json"
+        }
+        
         for ticker in tickers:
-            # 核心修复：更换为更底层且免 Cookie 的 v7 quote 接口
-            url = f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={ticker}"
-            # 伪装成真实的 Chrome 浏览器请求
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'application/json'
+            # 针对每个代码进行精准搜索，提取下一次财报日
+            payload = {
+                "filter": [{"left": "name", "operation": "equal", "right": ticker}],
+                "columns": ["name", "earnings_release_next_date", "earnings_release_date"]
             }
+            
             try:
-                res = requests.get(url, headers=headers, timeout=10)
+                res = requests.post(url, headers=headers, json=payload, timeout=10)
                 if res.status_code == 200:
-                    data = res.json()
-                    result = data.get('quoteResponse', {}).get('result', [])
-                    if result:
-                        # 精准提取财报时间戳
-                        ts = result[0].get('earningsTimestamp')
-                        if ts:
-                            dt = datetime.fromtimestamp(ts, tz=timezone.utc)
-                            display_time = dt.astimezone(ZoneInfo("Asia/Singapore")).strftime("%Y-%m-%d %H:%M") + " (SGT)"
-                            custom_events.append({
-                                "title": f"{ticker} 财报", 
-                                "ticker": ticker, 
-                                "date": display_time, 
-                                "timestamp": ts,
-                                "type": "custom", 
-                                "forecast": "关注财报指引", 
-                                "previous": "--", 
-                                "actual": "--"
-                            })
-                            print(f"✅ 成功锁定 {ticker} 财报日: {display_time}")
-                        else:
-                            print(f"⚠️ {ticker} 暂无未来财报日期数据")
+                    data = res.json().get('data', [])
+                    if data:
+                        cols = data[0].get('d', [])
+                        if len(cols) >= 3:
+                            # 优先取 next_date，如果为空则取当前的 release_date
+                            ts = cols[1] if cols[1] else cols[2]
+                            
+                            if ts:
+                                dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+                                display_time = dt.astimezone(ZoneInfo("Asia/Singapore")).strftime("%Y-%m-%d %H:%M") + " (SGT)"
+                                custom_events.append({
+                                    "title": f"{ticker} 财报", 
+                                    "ticker": ticker, 
+                                    "date": display_time, 
+                                    "timestamp": ts,
+                                    "type": "custom", 
+                                    "forecast": "关注财报指引", 
+                                    "previous": "--", 
+                                    "actual": "--"
+                                })
+                                print(f"✅ 成功锁定 {ticker} 财报日: {display_time}")
+                            else:
+                                print(f"⚠️ {ticker} 暂无未来财报排期")
                     else:
-                        print(f"⚠️ 找不到 {ticker} 的股票数据")
+                        print(f"⚠️ TradingView 数据库中找不到 {ticker}")
                 else:
-                    print(f"❌ 请求 {ticker} 被拒绝，状态码: {res.status_code}")
+                    print(f"❌ 请求 {ticker} 失败，状态码: {res.status_code}")
             except Exception as e: 
                 print(f"❌ 解析 {ticker} 异常: {e}")
                 
+            time.sleep(0.5) # 加上微小的延迟，防止并发过高被封 IP
+            
         return custom_events
     except Exception as e: 
         print(f"❌ 同步自选股整体异常: {e}")
