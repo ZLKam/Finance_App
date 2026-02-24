@@ -331,6 +331,7 @@
                         <h4 class="text-sm font-bold text-gray-300">${t} <span class="bg-blue-900/30 text-blue-400 border border-blue-800/50 px-1 rounded text-[8px] uppercase ml-1">排队同步中</span></h4>
                         <div class="text-[10px] text-gray-500 mt-1">等待云端引擎精准抓取财报日期...</div>
                     </div>
+                    <button onclick="deleteSubscription('${t}')" class="text-gray-500 hover:text-red-400 p-2 transition-colors" title="取消订阅">✖</button>
                 </div>`;
             });
 
@@ -342,14 +343,22 @@
                 const badge = isCustom ? `<span class="bg-green-900/40 text-green-400 border border-green-800 px-1 rounded text-[8px] uppercase ml-2">已就绪</span>` : '';
                 const details = isCustom ? `<span class="text-blue-300">系统已自动确认发布时间</span>` : `<span>前: ${ev.previous || '--'}</span><span class="text-blue-400">预: ${ev.forecast || '--'}</span>`;
 
+                const titleDisplay = (isCustom && ev.ticker) 
+                    ? `<a href="https://stockanalysis.com/stocks/${ev.ticker.toLowerCase()}/financials/?p=quarterly" target="_blank" rel="noopener noreferrer" class="hover:text-blue-400 transition-colors underline decoration-blue-500/50 underline-offset-4 cursor-pointer" title="直达查看 ${ev.ticker} 财报数据报表">${ev.title}</a>` 
+                    : ev.title;
+
+                // 新增：只有自选事件才有删除按钮
+                const deleteBtn = isCustom ? `<button onclick="deleteSubscription('${ev.ticker}')" class="text-gray-500 hover:text-red-400 p-2 transition-colors ml-2" title="取消订阅">✖</button>` : '';
+
                 html += `<div class="flex gap-3 bg-gray-800/50 p-3 rounded-xl border border-gray-700 items-center">
                     <div class="flex flex-col items-center justify-center min-w-[50px] bg-gray-900 rounded-lg h-[50px] border border-gray-700 shadow-inner">
                         <span class="text-[10px] text-gray-500">${day}</span><span class="text-xs font-bold text-gray-300">${time}</span>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <h4 class="text-sm font-bold text-gray-200 truncate">${ev.title}${badge}</h4>
+                        <h4 class="text-sm font-bold text-gray-200 truncate">${titleDisplay}${badge}</h4>
                         <div class="flex gap-3 mt-1 text-[10px] text-gray-400">${details}</div>
                     </div>
+                    ${deleteBtn}
                 </div>`;
             });
 
@@ -474,6 +483,30 @@
                 }, { merge: true });
                 closeModal();
             } catch (e) { alert('提交失败: ' + e.message); }
+        }
+
+        // --- 新增：删除订阅功能 ---
+        async function deleteSubscription(ticker) {
+            if (!confirm(`确定要取消订阅 ${ticker} 的财报提醒吗？`)) return;
+            if (!db) return alert('数据库未连接');
+
+            try {
+                // 1. 从监控队列中移除
+                await db.collection('market_data').doc('watchlist').set({
+                    tickers: firebase.firestore.FieldValue.arrayRemove(ticker)
+                }, { merge: true });
+
+                // 2. 从本地缓存的日程中移除，实现界面秒删 (不等 Python 跑)
+                const docRef = db.collection('market_data').doc('custom_calendar');
+                const docSnap = await docRef.get();
+                if (docSnap.exists) {
+                    const events = docSnap.data().events || [];
+                    const newEvents = events.filter(e => e.ticker !== ticker);
+                    await docRef.set({ events: newEvents }, { merge: true });
+                }
+            } catch (e) {
+                alert('取消订阅失败: ' + e.message);
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => { initDataListeners(); updateSentimentChart(); });
