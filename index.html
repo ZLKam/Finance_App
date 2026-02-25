@@ -7,13 +7,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#111827">
     <title>MarketMind</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    
     <script>
         tailwind.config = { theme: { extend: { colors: { gray: { 850: '#1f2937', 900: '#111827' } } } } }
     </script>
+    
     <style>
         body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -25,6 +28,7 @@
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans antialiased flex flex-col h-screen overflow-hidden">
 
+    <!-- Header -->
     <header class="flex-none bg-gray-900/95 z-40 px-5 pt-safe-top pb-3 border-b border-gray-800">
         <div class="flex justify-between items-end h-12">
             <div><h1 class="font-bold text-xl tracking-tight">Market<span class="text-blue-500">Mind</span></h1></div>
@@ -35,10 +39,14 @@
         </div>
     </header>
 
+    <!-- Main Content -->
     <main class="flex-grow overflow-y-auto hide-scrollbar pb-24 relative" id="main-scroll-area">
+        
+        <!-- View 1: Dashboard -->
         <section id="view-dashboard" class="p-5 space-y-6 block">
             <p class="text-xs text-gray-400 mb-2">主屏幕为您提炼当下最具交易价值的信号。</p>
             
+            <!-- Hero Event -->
             <div id="hero-event-container" class="bg-gradient-to-br from-gray-800 to-gray-850 rounded-2xl p-5 border border-gray-700 shadow-xl relative overflow-hidden">
                 <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
                 <div class="flex justify-between items-start mb-4 relative z-10">
@@ -55,7 +63,7 @@
                 </div>
                 <div id="hero-event-ai" class="mt-3 text-xs text-gray-300 border-t border-gray-700/50 pt-2"><span class="text-blue-400 font-bold">AI剧本:</span> 加载中...</div>
                 
-                <!-- 数据自由切换器 -->
+                <!-- 数据选择器 -->
                 <div class="mt-3 border-t border-gray-700/50 pt-3 relative z-10">
                     <label class="text-[10px] text-gray-500 uppercase font-bold">查看其他核心数据 AI 解读</label>
                     <select id="macro-selector" onchange="handleMacroSelection(this.value)" class="w-full bg-gray-900 border border-gray-600 rounded p-1.5 text-xs text-white mt-1 outline-none appearance-none">
@@ -64,6 +72,15 @@
                 </div>
             </div>
 
+            <!-- Custom Events Slider (财报预警横向滑块) -->
+            <div id="dashboard-custom-events-container" class="hidden">
+                <h3 class="text-sm font-bold text-gray-300 uppercase tracking-wider mb-3">即将到来的自选财报 (7日内)</h3>
+                <div id="dashboard-custom-events-list" class="flex overflow-x-auto gap-3 hide-scrollbar pb-2">
+                    <!-- 动态注入 -->
+                </div>
+            </div>
+
+            <!-- Chart -->
             <div>
                 <div class="flex justify-between items-end mb-3"><h3 class="text-sm font-bold text-gray-300 uppercase tracking-wider">市场多空力量 (AI判定)</h3></div>
                 <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 shadow-lg">
@@ -72,12 +89,14 @@
                 </div>
             </div>
 
+            <!-- News Preview -->
             <div>
                 <div class="flex justify-between items-end mb-3"><h3 class="text-sm font-bold text-gray-300 uppercase tracking-wider">Top 10 热点情报</h3><button onclick="switchTab('news')" class="text-xs text-blue-400 font-medium">查看全部</button></div>
                 <div id="dashboard-news-list" class="space-y-3"><div class="text-center text-gray-500 text-sm py-4">正在从数据库拉取...</div></div>
             </div>
         </section>
 
+        <!-- View 2: Calendar -->
         <section id="view-calendar" class="p-5 space-y-4 hidden relative">
             <div class="flex justify-between items-center mb-4">
                 <p class="text-xs text-gray-400">宏观数据与您的自选财报日历</p>
@@ -86,6 +105,7 @@
             <div id="calendar-list" class="space-y-3"></div>
         </section>
 
+        <!-- View 3: Intelligence -->
         <section id="view-news" class="p-5 space-y-4 hidden flex flex-col h-full">
             <p class="text-xs text-gray-400 mb-2">过去 24 小时内全网突发情报，已通过 AI 严格评分排序。</p>
             <div class="flex gap-2 mb-2">
@@ -96,13 +116,15 @@
             <div id="intelligence-list" class="space-y-4 pb-10"></div>
         </section>
         
+        <!-- Error State -->
         <section id="view-error" class="p-5 h-full flex flex-col items-center justify-center hidden">
             <div class="text-4xl mb-4">⚠️</div>
             <h2 class="text-xl font-bold text-yellow-500 mb-2">数据库尚未初始化</h2>
-            <p class="text-gray-300 text-sm mb-6 text-center">配置已生效，但你的项目需要在网页端创建一次数据库实例。</p>
+            <p class="text-gray-300 text-sm mb-6 text-center">配置已生效，但你需要检查 Firebase 控制台的连接状态。</p>
         </section>
     </main>
 
+    <!-- Bottom Nav -->
     <nav class="fixed bottom-0 w-full glass-nav z-40 pb-safe">
         <div class="flex justify-around items-center h-16 px-2">
             <button onclick="switchTab('dashboard')" id="tab-dashboard" class="nav-tab flex flex-col items-center justify-center w-full h-full text-blue-500 transition-colors">
@@ -117,7 +139,7 @@
         </div>
     </nav>
 
-    <!-- 极简联想输入弹窗 -->
+    <!-- Subscription Modal -->
     <div id="event-modal" class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
         <div class="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-sm p-6 shadow-2xl transform transition-all">
             <h3 class="text-lg font-bold text-white mb-4">订阅财报提醒</h3>
@@ -125,11 +147,10 @@
                 <div>
                     <label class="block text-xs text-gray-400 mb-2">搜索美股代码 (Ticker)</label>
                     <input type="text" id="ev-ticker" oninput="handleTickerSearch(this.value)" placeholder="输入如 NVD, AAPL..." autocomplete="off" class="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white text-base font-bold tracking-wider focus:border-blue-500 outline-none uppercase placeholder-gray-600">
-                    <!-- 自动补全下拉框 -->
                     <div id="ticker-suggestions" class="hidden absolute w-full bg-gray-700 border border-gray-600 rounded mt-1 z-50 max-h-40 overflow-y-auto shadow-xl"></div>
                 </div>
                 <div class="bg-blue-900/20 border border-blue-800/50 rounded p-3 text-xs text-blue-400">
-                    💡 请在下拉列表中点击确认代码。提交后，Python 引擎将自动获取精准财报日期。
+                    💡 请在下拉列表中点击确认代码。提交后，后端引擎将自动获取精准发布时间。
                 </div>
             </div>
             <div class="mt-6 flex gap-3 justify-end">
@@ -139,8 +160,11 @@
         </div>
     </div>
 
+    <!-- Application Logic -->
     <script>
-        // 🚀 保持 Firebase 配置为你指定的直接写入方式
+        // ------------------------------------------
+        // 1. Configuration & State
+        // ------------------------------------------
         const firebaseConfig = {
             apiKey: "AIzaSyAHnFy-RQTrJRIu4BFF4LnGA_PP6GWSDsk",
             authDomain: "finance-app-447cc.firebaseapp.com",
@@ -158,7 +182,11 @@
         } catch (e) { showErrorState(); }
 
         const state = { macroData: [], newsData: [], customData: [], watchlist: [], currentTab: 'dashboard', currentNewsFilter: 'all', nextEventTimer: null, sentimentChart: null };
+        let customEventTimers = [];
 
+        // ------------------------------------------
+        // 2. Firebase Listeners
+        // ------------------------------------------
         function initDataListeners() {
             const statusEl = document.getElementById('connection-status');
             const timeEl = document.getElementById('last-update-time');
@@ -166,7 +194,7 @@
 
             const handleErr = (e, unsub) => { if (e.code === 'not-found') { showErrorState(); if(unsub) unsub(); } };
 
-            let unsubM = db.collection('market_data').doc('macro').onSnapshot(doc => {
+            db.collection('market_data').doc('macro').onSnapshot(doc => {
                 if (doc.exists) {
                     state.macroData = doc.data().events || [];
                     timeEl.innerText = doc.data().last_updated ? doc.data().last_updated.split(' ')[1] : '--:--';
@@ -174,21 +202,24 @@
                     statusEl.className = "flex items-center gap-1 text-[10px] text-gray-400";
                     updateUI();
                 }
-            }, e => handleErr(e, unsubM));
+            }, e => handleErr(e, null));
 
-            let unsubN = db.collection('market_data').doc('news').onSnapshot(doc => {
+            db.collection('market_data').doc('news').onSnapshot(doc => {
                 if (doc.exists) { state.newsData = doc.data().articles || []; updateUI(); }
-            }, e => handleErr(e, unsubN));
+            }, e => handleErr(e, null));
 
-            let unsubC = db.collection('market_data').doc('custom_calendar').onSnapshot(doc => {
+            db.collection('market_data').doc('custom_calendar').onSnapshot(doc => {
                 if (doc.exists) { state.customData = doc.data().events || []; updateUI(); }
-            }, e => handleErr(e, unsubC));
+            }, e => handleErr(e, null));
 
-            let unsubW = db.collection('market_data').doc('watchlist').onSnapshot(doc => {
+            db.collection('market_data').doc('watchlist').onSnapshot(doc => {
                 if (doc.exists) { state.watchlist = doc.data().tickers || []; updateUI(); }
-            }, e => handleErr(e, unsubW));
+            }, e => handleErr(e, null));
         }
 
+        // ------------------------------------------
+        // 3. UI Rendering & Updates
+        // ------------------------------------------
         function showErrorState() {
             ['view-dashboard', 'view-calendar', 'view-news'].forEach(id => document.getElementById(id).classList.add('hidden'));
             document.getElementById('view-error').classList.remove('hidden');
@@ -197,13 +228,13 @@
 
         function updateUI() { 
             renderDashboardHero(false); 
+            renderDashboardCustomEvents();
             renderDashboardNews(); 
             renderCalendar(); 
             renderIntelligenceNews(); 
             updateSentimentChart(); 
         }
 
-        // 处理下拉框选择与记忆功能 (重点修复)
         function handleMacroSelection(uniqueKeyStr) {
             localStorage.setItem('selectedMacroKey', uniqueKeyStr);
             renderDashboardHero(true); 
@@ -214,8 +245,7 @@
             const now = new Date().getTime() / 1000;
             const selector = document.getElementById('macro-selector');
             
-            // 每次拉取数据后更新下拉列表，但使用 "timestamp|title" 作为绝对唯一标识符 (修复同时间数据的 Bug)
-            const currentSelected = selector.value;
+            // Build options
             selector.innerHTML = state.macroData.map(ev => 
                 `<option value="${ev.timestamp}|${ev.title}">${ev.date.split(' ')[0].slice(5)} - ${ev.title}</option>`
             ).join('');
@@ -223,12 +253,10 @@
             let targetIndex = -1;
             const savedKey = localStorage.getItem('selectedMacroKey');
             
-            // 根据唯一标识符寻找目标数据
             if (savedKey) {
                 targetIndex = state.macroData.findIndex(e => (`${e.timestamp}|${e.title}`) === savedKey);
             }
 
-            // 若没找到或没有记忆，执行智能寻找逻辑
             if (targetIndex === -1) {
                 let nextEventIdx = state.macroData.findIndex(e => e.timestamp > now);
                 if (nextEventIdx === -1) {
@@ -246,11 +274,10 @@
             const targetEvent = state.macroData[targetIndex];
             const targetKey = `${targetEvent.timestamp}|${targetEvent.title}`;
 
-            // UI 同步：确保下拉框显示当前查看的数据
             if (!isFromSelection && selector.value !== targetKey) {
                  selector.value = targetKey;
             } else if (isFromSelection) {
-                 selector.value = savedKey; // 维持用户手动点击的选择
+                 selector.value = savedKey; 
             }
 
             const isPast = targetEvent.timestamp <= now;
@@ -283,6 +310,68 @@
                     cEl.className = diff < 1800 ? "bg-yellow-600/20 text-yellow-400 border-yellow-600/50 px-2 py-1 rounded text-xs font-mono mt-1" : "bg-gray-900 text-blue-300 px-2 py-1 rounded text-xs font-mono border border-gray-700 mt-1";
                 }, 1000);
             }
+        }
+
+        function renderDashboardCustomEvents() {
+            const container = document.getElementById('dashboard-custom-events-container');
+            const listEl = document.getElementById('dashboard-custom-events-list');
+            const now = new Date().getTime() / 1000;
+            
+            customEventTimers.forEach(t => clearInterval(t));
+            customEventTimers = [];
+
+            const upcomingCustoms = state.customData
+                .filter(ev => ev.timestamp > now && ev.timestamp <= now + 7 * 24 * 3600)
+                .sort((a, b) => a.timestamp - b.timestamp);
+
+            if (upcomingCustoms.length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            container.classList.remove('hidden');
+            
+            listEl.innerHTML = upcomingCustoms.map((ev, index) => {
+                return `
+                    <div class="min-w-[200px] max-w-[220px] bg-gradient-to-br from-blue-900/30 to-gray-850 rounded-xl p-3 border border-blue-500/30 flex-shrink-0 relative overflow-hidden shadow-lg">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">${ev.ticker}</span>
+                            <a href="https://stockanalysis.com/stocks/${ev.ticker.toLowerCase()}/financials/" target="_blank" class="text-xs text-blue-400 hover:text-white transition-colors" title="直达财报数据">🔗报表</a>
+                        </div>
+                        <div class="text-sm font-bold text-white truncate mb-1">${ev.title}</div>
+                        <div class="text-[10px] text-gray-400 mb-2">${ev.date.split(' ')[0].slice(5)} 发布</div>
+                        <div id="custom-countdown-${index}" class="text-xs font-mono font-bold text-yellow-400 mt-auto bg-gray-900/50 py-1 px-2 rounded w-fit">计算中...</div>
+                    </div>
+                `;
+            }).join('');
+
+            upcomingCustoms.forEach((ev, index) => {
+                const el = document.getElementById(`custom-countdown-${index}`);
+                if (!el) return;
+                
+                const timer = setInterval(() => {
+                    const diff = ev.timestamp - (new Date().getTime() / 1000);
+                    if (diff <= 0) {
+                        el.innerText = "正在发布!";
+                        el.classList.replace("text-yellow-400", "text-green-400");
+                        clearInterval(timer);
+                        return;
+                    }
+                    const d = Math.floor(diff / (24 * 3600));
+                    const h = Math.floor((diff % (24 * 3600)) / 3600).toString().padStart(2, '0');
+                    const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+                    const s = Math.floor(diff % 60).toString().padStart(2, '0');
+                    
+                    if (d > 0) {
+                        el.innerText = `剩余 ${d}天 ${h}小时`;
+                        el.className = "text-xs font-mono font-bold text-blue-300 bg-gray-900/50 py-1 px-2 rounded w-fit";
+                    } else {
+                        el.innerText = `T-${h}:${m}:${s}`;
+                        el.className = "text-xs font-mono font-bold text-yellow-400 bg-yellow-900/30 border border-yellow-500/50 py-1 px-2 rounded w-fit animate-pulse";
+                    }
+                }, 1000);
+                customEventTimers.push(timer);
+            });
         }
 
         function generateNewsCardHTML(news) {
@@ -329,9 +418,9 @@
                     </div>
                     <div class="flex-1 min-w-0 opacity-70">
                         <h4 class="text-sm font-bold text-gray-300">${t} <span class="bg-blue-900/30 text-blue-400 border border-blue-800/50 px-1 rounded text-[8px] uppercase ml-1">排队同步中</span></h4>
-                        <div class="text-[10px] text-gray-500 mt-1">等待云端引擎精准抓取财报日期...</div>
+                        <div class="text-[10px] text-gray-500 mt-1">等待云端引擎精准抓取发布时间...</div>
                     </div>
-                    <button onclick="deleteSubscription('${t}')" class="text-gray-500 hover:text-red-400 p-2 transition-colors" title="取消订阅">✖</button>
+                    <button onclick="deleteSubscription('${t}')" class="text-gray-500 hover:text-red-400 p-2 transition-colors text-lg font-bold" title="取消订阅">×</button>
                 </div>`;
             });
 
@@ -344,11 +433,10 @@
                 const details = isCustom ? `<span class="text-blue-300">系统已自动确认发布时间</span>` : `<span>前: ${ev.previous || '--'}</span><span class="text-blue-400">预: ${ev.forecast || '--'}</span>`;
 
                 const titleDisplay = (isCustom && ev.ticker) 
-                    ? `<a href="https://stockanalysis.com/stocks/${ev.ticker.toLowerCase()}/financials/?p=quarterly" target="_blank" rel="noopener noreferrer" class="hover:text-blue-400 transition-colors underline decoration-blue-500/50 underline-offset-4 cursor-pointer" title="直达查看 ${ev.ticker} 财报数据报表">${ev.title}</a>` 
+                    ? `<a href="https://stockanalysis.com/stocks/${ev.ticker.toLowerCase()}/financials/" target="_blank" rel="noopener noreferrer" class="hover:text-blue-400 transition-colors underline decoration-blue-500/50 underline-offset-4 cursor-pointer" title="直达查看 ${ev.ticker} 财务报表">${ev.title}</a>` 
                     : ev.title;
 
-                // 新增：只有自选事件才有删除按钮
-                const deleteBtn = isCustom ? `<button onclick="deleteSubscription('${ev.ticker}')" class="text-gray-500 hover:text-red-400 p-2 transition-colors ml-2" title="取消订阅">✖</button>` : '';
+                const deleteBtn = isCustom ? `<button onclick="deleteSubscription('${ev.ticker}')" class="text-gray-500 hover:text-red-400 p-2 transition-colors ml-2 text-lg font-bold" title="取消订阅">×</button>` : '';
 
                 html += `<div class="flex gap-3 bg-gray-800/50 p-3 rounded-xl border border-gray-700 items-center">
                     <div class="flex flex-col items-center justify-center min-w-[50px] bg-gray-900 rounded-lg h-[50px] border border-gray-700 shadow-inner">
@@ -394,6 +482,9 @@
             });
         }
 
+        // ------------------------------------------
+        // 4. Interactions & Utilities
+        // ------------------------------------------
         function switchTab(tabId) {
             state.currentTab = tabId;
             ['view-dashboard', 'view-calendar', 'view-news', 'view-error'].forEach(id => document.getElementById(id).classList.add('hidden'));
@@ -442,14 +533,14 @@
                         box.innerHTML = quotes.map(s => {
                             const shortName = s.shortname ? s.shortname.replace(/'/g, "\\'") : s.symbol;
                             return `<div onclick="selectTicker('${s.symbol}')" class="p-3 hover:bg-gray-600 cursor-pointer text-sm border-b border-gray-600 last:border-0 transition-colors">
-                                <span class="font-bold text-white">${s.symbol}</span> <span class="text-gray-400 text-xs ml-1">${s.shortname || ''}</span>
+                                <span class="font-bold text-white">${s.symbol}</span> <span class="text-gray-400 text-xs ml-1">${shortName}</span>
                             </div>`;
                         }).join('');
                     } else {
                         box.innerHTML = '<div class="p-3 text-xs text-gray-400">未找到有效美股代码</div>';
                     }
                 } catch (error) {
-                    box.innerHTML = '<div class="p-3 text-xs text-red-400">网络异常，请直接强行提交</div>';
+                    box.innerHTML = '<div class="p-3 text-xs text-red-400">网络受限，可直接强行提交</div>';
                 }
             }, 500);
         }
@@ -460,9 +551,18 @@
             const btn = document.getElementById('btn-save-event');
             btn.classList.remove('opacity-50', 'cursor-not-allowed');
             btn.disabled = false;
+            
+            // 如果用户之前搜不到，允许强行解开限制
+            document.getElementById('ev-ticker').addEventListener('input', function() {
+                 if(this.value.trim().length > 0) {
+                     btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                     btn.disabled = false;
+                 }
+            });
         }
 
         function openModal() { document.getElementById('event-modal').classList.remove('hidden'); document.getElementById('ev-ticker').focus(); }
+        
         function closeModal() { 
             document.getElementById('event-modal').classList.add('hidden'); 
             document.getElementById('ev-ticker').value = ''; 
@@ -485,18 +585,15 @@
             } catch (e) { alert('提交失败: ' + e.message); }
         }
 
-        // --- 新增：删除订阅功能 ---
         async function deleteSubscription(ticker) {
-            if (!confirm(`确定要取消订阅 ${ticker} 的财报提醒吗？`)) return;
+            if (!confirm(`确定要取消订阅 ${ticker} 吗？`)) return;
             if (!db) return alert('数据库未连接');
 
             try {
-                // 1. 从监控队列中移除
                 await db.collection('market_data').doc('watchlist').set({
                     tickers: firebase.firestore.FieldValue.arrayRemove(ticker)
                 }, { merge: true });
 
-                // 2. 从本地缓存的日程中移除，实现界面秒删 (不等 Python 跑)
                 const docRef = db.collection('market_data').doc('custom_calendar');
                 const docSnap = await docRef.get();
                 if (docSnap.exists) {
@@ -505,11 +602,14 @@
                     await docRef.set({ events: newEvents }, { merge: true });
                 }
             } catch (e) {
-                alert('取消订阅失败: ' + e.message);
+                alert('取消失败: ' + e.message);
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => { initDataListeners(); updateSentimentChart(); });
+        document.addEventListener('DOMContentLoaded', () => { 
+            initDataListeners(); 
+            updateSentimentChart(); 
+        });
     </script>
 </body>
 </html>

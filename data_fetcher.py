@@ -240,17 +240,80 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"\n☁️ ❌ Firebase 上传失败: {e}")
 
-    # Telegram 推送
-    today_sgt = datetime.now(ZoneInfo("Asia/Singapore")).date()
-    today_macro = [ev for ev in all_macro_data if datetime.fromtimestamp(ev['timestamp'], tz=ZoneInfo("Asia/Singapore")).date() == today_sgt]
-    
+    # ==========================================
+    # 模块 4: 精准时间窗口智能推送 (1天前 & 1小时前)
+    # ==========================================
+    if db:
+        try:
+            # 读取已发送的通知记录
+            notif_ref = db.collection('market_data').document('notifications')
+            notif_doc = notif_ref.get()
+            notif_data = notif_doc.to_dict() if notif_doc.exists else {'sent_24h': [], 'sent_1h': []}
+            sent_24h = notif_data.get('sent_24h', [])
+            sent_1h = notif_data.get('sent_1h', [])
+            
+            now_ts = datetime.now().timestamp()
+
+            # 🧹 --- 新增：核心自动清理逻辑 ---
+            def clean_old_notifs(notif_list):
+                cleaned = []
+                for uid in notif_list:
+                    try:
+                        # 解析出 UID 中的时间戳 (例如 "XXX财报_1716382800")
+                        ts_str = uid.rsplit('_', 1)[-1]
+                        ts = float(ts_str)
+                        # 如果事件发生时间在 7 天以内（或者还在未来），则保留
+                        if (now_ts - ts) < 7 * 24 * 3600:
+                            cleaned.append(uid)
+                    except Exception:
+                        pass
+                # 额外增加一道安全锁，每个队列最多只保留最新的 200 条记录
+                return cleaned[-200:]
+
+            # 在执行今天的比对前，先做大扫除
+            sent_24h = clean_old_notifs(sent_24h)
+            sent_1h = clean_old_notifs(sent_1h)
+            # 🧹 -----------------------------
+            
+            combined_events = all_macro_data + (custom_events if custom_events else [])
+            
+            for ev in combined_events:
+                ev_ts = ev['timestamp']
+                time_diff_hours = (ev_ts - now_ts) / 3600
+                # 创建唯一ID，例如: "美国非农就业人数_1716382800"
+                uid = f"{ev['title']}_{ev_ts}"
+                
+                # --- 触发: 提前 1 天 (24小时) 推送 ---
+                if 1.5 < time_diff_hours <= 25 and uid not in sent_24h:
+                    ev_type = "📅 核心数据" if ev.get('type') != 'custom' else "🍎 财报预警"
+                    msg = f"{ev_type} **明日发布提醒**\n\n🔹 **{ev['title']}**\n⏱ 预计时间: {ev['date']}\n"
+                    if ev.get('type') != 'custom':
+                        msg += f"📉 预期: {ev['forecast']} | 前值: {ev['previous']}\n💡 **AI剧本**: {ev.get('analysis', '')}\n"
+                    else:
+                        msg += f"💡 备注: {ev.get('forecast', '')}\n"
+                    send_telegram_alert(msg)
+                    sent_24h.append(uid)
+                    print(f"📩 推送了 24H 提醒: {ev['title']}")
+                    
+                # --- 触发: 提前 1 小时 推送 ---
+                elif 0 < time_diff_hours <= 1.5 and uid not in sent_1h:
+                    ev_type = "🚨 核心数据" if ev.get('type') != 'custom' else "🔥 财报预警"
+                    msg = f"{ev_type} **即将发布 (1小时内)**\n\n🔹 **{ev['title']}**\n⏱ 预计时间: {ev['date']}\n"
+                    if ev.get('type') != 'custom':
+                        msg += f"📉 预期: {ev['forecast']} | 前值: {ev['previous']}\n💡 **AI剧本**: {ev.get('analysis', '')}\n"
+                    else:
+                        msg += f"💡 备注: {ev.get('forecast', '')}\n⚠️ 重点关注隐含波动率(IV)带来的市场剧烈波动！\n"
+                    send_telegram_alert(msg)
+                    sent_1h.append(uid)
+                    print(f"📩 推送了 1H 提醒: {ev['title']}")
+
+            # 更新记忆库（此时存入的是已经瘦身过的健康数组）
+            notif_ref.set({'sent_24h': sent_24h, 'sent_1h': sent_1h})
+        except Exception as e:
+            print(f"❌ 定时推送逻辑异常: {e}")
+
+    # 新闻推送逻辑保持不变 (高重要性突发实时推送)
     print("-" * 40)
-    if today_macro:
-        tg_msg = f"📊 **今日核心经济数据** ({datetime.now(ZoneInfo('Asia/Singapore')).strftime('%Y-%m-%d')})\n\n"
-        for ev in today_macro:
-            tg_msg += f"🔹 **{ev['title']}**\n⏱ {ev['date'].split(' ')[1]}\n📉 预:{ev['forecast']} | 前:{ev['previous']} | 实:{ev['actual']}\n💡 **AI**: {ev['analysis']}\n\n"
-        send_telegram_alert(tg_msg)
-        
     if analyzed_news:
         for news in analyzed_news:
             if news['score'] >= 7:
