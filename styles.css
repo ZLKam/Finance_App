@@ -1,0 +1,155 @@
+/* ============================================
+   MarketMind — styles.css
+   ============================================ */
+
+/* Layout & Scroll */
+body {
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Chart */
+.chart-container {
+    position: relative;
+    width: 100%;
+    max-width: 600px;
+    height: 180px;
+    margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+    .chart-container { height: 220px; }
+}
+
+/* Bottom Nav Glassmorphism */
+.glass-nav {
+    background: rgba(17, 24, 39, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(55, 65, 81, 0.5);
+}
+
+/* Hero card ambient glow */
+.hero-glow {
+    position: absolute;
+    top: 0; right: 0;
+    width: 8rem; height: 8rem;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 9999px;
+    filter: blur(40px);
+    margin-right: -2.5rem;
+    margin-top: -2.5rem;
+    pointer-events: none;
+}
+
+/* Nav Tab States */
+.nav-tab {
+    color: #6b7280;
+}
+
+.nav-tab:hover {
+    color: #d1d5db;
+}
+
+.nav-tab.active {
+    color: #3b82f6;
+}
+
+/* Filter Buttons */
+.filter-btn {
+    background: #1f2937;
+    color: #9ca3af;
+    border: 1px solid #374151;
+}
+
+.filter-btn.active {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: transparent;
+}
+
+/* Countdown States */
+.countdown-default {
+    background: #111827;
+    color: #93c5fd;
+    border: 1px solid #374151;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-family: monospace;
+    margin-top: 0.25rem;
+}
+
+.countdown-warning {
+    background: rgba(120, 53, 15, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(180, 83, 9, 0.5);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-family: monospace;
+    margin-top: 0.25rem;
+}
+
+.countdown-live {
+    background: #dc2626;
+    color: #ffffff;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-family: monospace;
+    font-weight: 700;
+    animation: pulse 1.5s ease-in-out infinite;
+    margin-top: 0.25rem;
+}
+
+.countdown-past {
+    background: #1f2937;
+    color: #9ca3af;
+    border: 1px solid #374151;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-family: monospace;
+    margin-top: 0.25rem;
+}
+
+/* Custom event countdown chips */
+.chip-days {
+    font-size: 0.75rem;
+    font-family: monospace;
+    font-weight: 700;
+    color: #93c5fd;
+    background: rgba(17, 24, 39, 0.5);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.chip-hours {
+    font-size: 0.75rem;
+    font-family: monospace;
+    font-weight: 700;
+    color: #fbbf24;
+    background: rgba(120, 53, 15, 0.3);
+    border: 1px solid rgba(180, 83, 9, 0.5);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* Tailwind gray-850 shim */
+.bg-gray-850 {
+    --tw-bg-opacity: 1;
+    background-color: rgba(31, 41, 55, var(--tw-bg-opacity));
+}
