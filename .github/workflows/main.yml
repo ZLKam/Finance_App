@@ -2,9 +2,10 @@ name: MarketMind Auto Run
 
 on:
     schedule:
-        - cron: "0 0,8,12,14,15,16,17,18,22 * * *"
+        - cron: "0 0,8,12,14,15,16,17,18,22 * * 1-5"
         # 专门针对美股开盘时间 (冬令时 EST 09:30 / SGT 22:30)，这1次在半点执行
-        - cron: "30 14 * * *"
+        - cron: "30 14 * * 1-5"
+        - cron: "0 4,10,14 * * 0,6"
     workflow_dispatch:
 
 jobs:
